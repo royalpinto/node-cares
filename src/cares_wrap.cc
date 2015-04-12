@@ -212,11 +212,23 @@ namespace node {
       for (int i = 0; host->h_addr_list[i]; ++i) {
         uv_inet_ntop(host->h_addrtype, host->h_addr_list[i], ip, sizeof(ip));
 
-        Local<String> address = NanNew<String>(ip);
+        Local<String> address = NanNew(ip);
         addresses->Set(NanNew<Integer>(i), address);
       }
 
       return addresses;
+    }
+
+    static Local<Array> HostentToNames(struct hostent* host) {
+      NanEscapableScope();
+      Local<Array> names = NanNew<Array>();
+
+      for (uint32_t i = 0; host->h_aliases[i] != NULL; ++i) {
+        Local<String> address = NanNew(host->h_aliases[i]);
+        names->Set(i, address);
+      }
+
+      return scope.Escape(names);
     }
 
 
@@ -355,6 +367,340 @@ namespace node {
     };
 
 
+    class QueryCnameWrap: public QueryWrap {
+    public:
+      QueryCnameWrap(ares_channel _ares_channel): QueryWrap(_ares_channel) {
+      }
+
+      int Send(const char* name) {
+        ares_query(this->_ares_channel,
+                   name,
+                   ns_c_in,
+                   ns_t_cname,
+                   Callback,
+                   GetQueryArg());
+        return 0;
+      }
+
+    protected:
+      void Parse(unsigned char* buf, int len) {
+        NanScope();
+        struct hostent* host;
+
+        int status = ares_parse_a_reply(buf, len, &host, NULL, NULL);
+        if (status != ARES_SUCCESS) {
+          ParseError(status);
+          return;
+        }
+
+        // A cname lookup always returns a single record but we follow the
+        // common API here.
+        Local<Array> result = NanNew<Array>(1);
+        result->Set(0, NanNew(host->h_name));
+        ares_free_hostent(host);
+
+        this->CallOnComplete(result);
+      }
+    };
+
+
+    class QueryMxWrap: public QueryWrap {
+    public:
+      QueryMxWrap(ares_channel _ares_channel): QueryWrap(_ares_channel) {
+      }
+
+      int Send(const char* name) {
+        ares_query(this->_ares_channel,
+                   name,
+                   ns_c_in,
+                   ns_t_mx,
+                   Callback,
+                   GetQueryArg());
+        return 0;
+      }
+
+    protected:
+      void Parse(unsigned char* buf, int len) {
+        NanScope();
+
+        struct ares_mx_reply* mx_start;
+        int status = ares_parse_mx_reply(buf, len, &mx_start);
+        if (status != ARES_SUCCESS) {
+          ParseError(status);
+          return;
+        }
+
+        Local<Array> mx_records = NanNew<Array>();
+        Local<String> exchange_symbol = NanNew("exchange");
+        Local<String> priority_symbol = NanNew("priority");
+
+        ares_mx_reply* current = mx_start;
+        for (uint32_t i = 0; current != NULL; ++i, current = current->next) {
+          Local<Object> mx_record = NanNew<Object>();
+          mx_record->Set(exchange_symbol,
+                         NanNew(current->host));
+          mx_record->Set(priority_symbol,
+                         NanNew<Integer>(current->priority));
+          mx_records->Set(i, mx_record);
+        }
+
+        ares_free_data(mx_start);
+
+        this->CallOnComplete(mx_records);
+      }
+    };
+
+
+    class QueryNsWrap: public QueryWrap {
+    public:
+      QueryNsWrap(ares_channel _ares_channel): QueryWrap(_ares_channel) {
+      }
+
+      int Send(const char* name) {
+        ares_query(this->_ares_channel,
+                   name,
+                   ns_c_in,
+                   ns_t_ns,
+                   Callback,
+                   GetQueryArg());
+        return 0;
+      }
+
+    protected:
+      void Parse(unsigned char* buf, int len) {
+        NanScope();
+        struct hostent* host;
+
+        int status = ares_parse_ns_reply(buf, len, &host);
+        if (status != ARES_SUCCESS) {
+          ParseError(status);
+          return;
+        }
+
+        Local<Array> names = HostentToNames(host);
+        ares_free_hostent(host);
+
+        this->CallOnComplete(names);
+      }
+    };
+
+
+    class QueryTxtWrap: public QueryWrap {
+    public:
+      QueryTxtWrap(ares_channel _ares_channel): QueryWrap(_ares_channel) {
+      }
+
+      int Send(const char* name) {
+        ares_query(this->_ares_channel,
+                   name,
+                   ns_c_in,
+                   ns_t_txt,
+                   Callback,
+                   GetQueryArg());
+        return 0;
+      }
+
+    protected:
+      void Parse(unsigned char* buf, int len) {
+        NanScope();
+        struct ares_txt_reply* txt_out;
+
+        int status = ares_parse_txt_reply(buf, len, &txt_out);
+        if (status != ARES_SUCCESS) {
+          ParseError(status);
+          return;
+        }
+
+        Local<Array> txt_records = NanNew<Array>();
+        Local<Array> txt_chunk;
+
+        ares_txt_reply* current = txt_out;
+        uint32_t i = 0;
+        for (uint32_t j = 0; current != NULL; current = current->next) {
+          Local<String> txt = NanNew(current->txt);
+          // New record found - write out the current chunk
+          if (current->record_start) {
+            if (!txt_chunk.IsEmpty())
+              txt_records->Set(i++, txt_chunk);
+            txt_chunk = NanNew<Array>();
+            j = 0;
+          }
+          txt_chunk->Set(j++, txt);
+        }
+        // Push last chunk
+        txt_records->Set(i, txt_chunk);
+
+        ares_free_data(txt_out);
+
+        this->CallOnComplete(txt_records);
+      }
+    };
+
+
+    class QuerySrvWrap: public QueryWrap {
+    public:
+      explicit QuerySrvWrap(ares_channel _ares_channel): QueryWrap(_ares_channel) {
+      }
+
+      int Send(const char* name) {
+        ares_query(this->_ares_channel,
+                   name,
+                   ns_c_in,
+                   ns_t_srv,
+                   Callback,
+                   GetQueryArg());
+        return 0;
+      }
+
+    protected:
+      void Parse(unsigned char* buf, int len) {
+        NanScope();
+
+        struct ares_srv_reply* srv_start;
+        int status = ares_parse_srv_reply(buf, len, &srv_start);
+        if (status != ARES_SUCCESS) {
+          ParseError(status);
+          return;
+        }
+
+        Local<Array> srv_records = NanNew<Array>();
+        Local<String> name_symbol = NanNew("name");
+        Local<String> port_symbol = NanNew("port");
+        Local<String> priority_symbol = NanNew("priority");
+        Local<String> weight_symbol = NanNew("weight");
+
+        ares_srv_reply* current = srv_start;
+        for (uint32_t i = 0; current != NULL; ++i, current = current->next) {
+          Local<Object> srv_record = NanNew<Object>();
+          srv_record->Set(name_symbol,
+                          NanNew(current->host));
+          srv_record->Set(port_symbol,
+                          NanNew<Integer>(current->port));
+          srv_record->Set(priority_symbol,
+                          NanNew<Integer>(current->priority));
+          srv_record->Set(weight_symbol,
+                          NanNew<Integer>(current->weight));
+          srv_records->Set(i, srv_record);
+        }
+
+        ares_free_data(srv_start);
+
+        this->CallOnComplete(srv_records);
+      }
+    };
+
+
+    class QueryNaptrWrap: public QueryWrap {
+    public:
+      explicit QueryNaptrWrap(ares_channel _ares_channel): QueryWrap(_ares_channel) {
+      }
+
+      int Send(const char* name) {
+        ares_query(this->_ares_channel,
+                   name,
+                   ns_c_in,
+                   ns_t_naptr,
+                   Callback,
+                   GetQueryArg());
+        return 0;
+      }
+
+    protected:
+      void Parse(unsigned char* buf, int len) {
+        NanScope();
+
+        ares_naptr_reply* naptr_start;
+        int status = ares_parse_naptr_reply(buf, len, &naptr_start);
+
+        if (status != ARES_SUCCESS) {
+          ParseError(status);
+          return;
+        }
+
+        Local<Array> naptr_records = NanNew<Array>();
+        Local<String> flags_symbol = NanNew("flags");
+        Local<String> service_symbol = NanNew("service");
+        Local<String> regexp_symbol = NanNew("regexp");
+        Local<String> replacement_symbol = NanNew("replacement");
+        Local<String> order_symbol = NanNew("order");
+        Local<String> preference_symbol = NanNew("preference");
+
+        ares_naptr_reply* current = naptr_start;
+        for (uint32_t i = 0; current != NULL; ++i, current = current->next) {
+          Local<Object> naptr_record = NanNew<Object>();
+          naptr_record->Set(flags_symbol,
+                            NanNew(current->flags));
+          naptr_record->Set(service_symbol,
+                            NanNew(current->service));
+          naptr_record->Set(regexp_symbol,
+                            NanNew(current->regexp));
+          naptr_record->Set(replacement_symbol,
+                            NanNew(current->replacement));
+          naptr_record->Set(order_symbol,
+                            NanNew<Integer>(current->order));
+          naptr_record->Set(preference_symbol,
+                            NanNew<Integer>(current->preference));
+          naptr_records->Set(i, naptr_record);
+        }
+
+        ares_free_data(naptr_start);
+
+        this->CallOnComplete(naptr_records);
+      }
+    };
+
+
+    class QuerySoaWrap: public QueryWrap {
+    public:
+      QuerySoaWrap(ares_channel _ares_channel): QueryWrap(_ares_channel) {
+      }
+
+      int Send(const char* name) {
+        ares_query(this->_ares_channel,
+                   name,
+                   ns_c_in,
+                   ns_t_soa,
+                   Callback,
+                   GetQueryArg());
+        return 0;
+      }
+
+    protected:
+      void Parse(unsigned char* buf, int len) {
+        NanScope();
+
+        ares_soa_reply* soa_out;
+        int status = ares_parse_soa_reply(buf, len, &soa_out);
+
+        if (status != ARES_SUCCESS) {
+          ParseError(status);
+          return;
+        }
+
+        Local<Object> soa_record = NanNew<Object>();
+
+        soa_record->Set(NanNew("nsname"),
+                        NanNew(soa_out->nsname));
+        soa_record->Set(NanNew("hostmaster"),
+                        NanNew(soa_out->hostmaster));
+        soa_record->Set(NanNew("serial"),
+                        NanNew<Integer>(soa_out->serial));
+        soa_record->Set(NanNew("refresh"),
+                        NanNew<Integer>(soa_out->refresh));
+        soa_record->Set(NanNew("retry"),
+                        NanNew<Integer>(soa_out->retry));
+        soa_record->Set(NanNew("expire"),
+                        NanNew<Integer>(soa_out->expire));
+        soa_record->Set(NanNew("minttl"),
+                        NanNew<Integer>(soa_out->minttl));
+
+        ares_free_data(soa_out);
+
+        this->CallOnComplete(soa_record);
+      }
+    };
+
+
     static void Callback(void *arg, int status, int timeouts,
                          unsigned char* answer_buf, int answer_len) {
       QueryWrap* wrap = static_cast<QueryWrap*>(arg);
@@ -419,8 +765,15 @@ namespace node {
 
       NODE_SET_METHOD(target, "queryA", Query<QueryAWrap>);
       NODE_SET_METHOD(target, "queryAaaa", Query<QueryAaaaWrap>);
+      NODE_SET_METHOD(target, "queryCname", Query<QueryCnameWrap>);
+      NODE_SET_METHOD(target, "queryMx", Query<QueryMxWrap>);
+      NODE_SET_METHOD(target, "queryNs", Query<QueryNsWrap>);
+      NODE_SET_METHOD(target, "queryTxt", Query<QueryTxtWrap>);
+      NODE_SET_METHOD(target, "querySrv", Query<QuerySrvWrap>);
+      NODE_SET_METHOD(target, "queryNaptr", Query<QueryNaptrWrap>);
+      NODE_SET_METHOD(target, "querySoa", Query<QuerySoaWrap>);
 
-      NanAssignPersistent(oncomplete_sym, NanNew<String>("oncomplete"));
+      NanAssignPersistent(oncomplete_sym, NanNew("oncomplete"));
 
     }
 
