@@ -71,6 +71,9 @@ namespace node {
     static void Callback(void *arg, int status, int timeouts,
                          unsigned char* answer_buf, int answer_len);
 
+    static void Callback(void *arg, int status, int timeouts,
+                         struct hostent* host);
+
     struct ares_task_t {
       UV_HANDLE_FIELDS
       ares_socket_t sock;
@@ -701,6 +704,42 @@ namespace node {
     };
 
 
+    class GetHostByAddrWrap: public QueryWrap {
+    public:
+      explicit GetHostByAddrWrap(ares_channel _ares_channel): QueryWrap(_ares_channel) {
+      }
+
+      int Send(const char* name) {
+        int length, family;
+        char address_buffer[sizeof(struct in6_addr)];
+
+        if (uv_inet_pton(AF_INET, name, &address_buffer) == 0) {
+          length = sizeof(struct in_addr);
+          family = AF_INET;
+        } else if (uv_inet_pton(AF_INET6, name, &address_buffer) == 0) {
+          length = sizeof(struct in6_addr);
+          family = AF_INET6;
+        } else {
+          return UV_EINVAL;  // So errnoException() reports a proper error.
+        }
+
+        ares_gethostbyaddr(this->_ares_channel,
+                           address_buffer,
+                           length,
+                           family,
+                           Callback,
+                           GetQueryArg());
+        return 0;
+      }
+
+    protected:
+      void Parse(struct hostent* host) {
+        NanScope();
+        this->CallOnComplete(HostentToNames(host));
+      }
+    };
+
+
     static void Callback(void *arg, int status, int timeouts,
                          unsigned char* answer_buf, int answer_len) {
       QueryWrap* wrap = static_cast<QueryWrap*>(arg);
@@ -709,6 +748,19 @@ namespace node {
       } else {
         wrap->Parse(answer_buf, answer_len);
       }
+      delete wrap;
+    }
+
+    static void Callback(void *arg, int status, int timeouts,
+                         struct hostent* host) {
+      QueryWrap* wrap = static_cast<QueryWrap*>(arg);
+
+      if (status != ARES_SUCCESS) {
+        wrap->ParseError(status);
+      } else {
+        wrap->Parse(host);
+      }
+
       delete wrap;
     }
 
@@ -772,6 +824,7 @@ namespace node {
       NODE_SET_METHOD(target, "querySrv", Query<QuerySrvWrap>);
       NODE_SET_METHOD(target, "queryNaptr", Query<QueryNaptrWrap>);
       NODE_SET_METHOD(target, "querySoa", Query<QuerySoaWrap>);
+      NODE_SET_METHOD(target, "getHostByAddr", Query<GetHostByAddrWrap>);
 
       NanAssignPersistent(oncomplete_sym, NanNew("oncomplete"));
 
