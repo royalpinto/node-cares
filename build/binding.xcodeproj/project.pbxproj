@@ -13,7 +13,7 @@
 /* Begin PBXFileReference section */
 		3669A88F5B121C4353CB75A1 /* common.gypi */ = {isa = PBXFileReference; explicitFileType = sourcecode; name = common.gypi; path = "../../../../.node-gyp/0.12.1/common.gypi"; sourceTree = "<group>"; };
 		5994D4CAAF6CF72A4AD8621C /* binding.gyp */ = {isa = PBXFileReference; explicitFileType = sourcecode; path = binding.gyp; sourceTree = "<group>"; };
-		7ABB87502D47A739E8A83302 /* cares_wrap.cc */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = cares_wrap.cc; sourceTree = "<group>"; };
+		7ABB87502D47A739E8A83302 /* cares_wrap.cc */ = {isa = PBXFileReference; indentWidth = 2; lastKnownFileType = sourcecode.cpp.cpp; path = cares_wrap.cc; sourceTree = "<group>"; };
 		86DA05936966AB7017271718 /* config.gypi */ = {isa = PBXFileReference; explicitFileType = sourcecode; name = config.gypi; path = build/config.gypi; sourceTree = "<group>"; };
 		9A2F44D005204678D7EF2E98 /* addon.gypi */ = {isa = PBXFileReference; explicitFileType = sourcecode; name = addon.gypi; path = "../../../../../../usr/lib/node_modules/node-gyp/addon.gypi"; sourceTree = "<group>"; };
 		A29F6247D7CE588278AD897D /* cares_wrap.node */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; includeInIndex = 0; path = cares_wrap.node; sourceTree = BUILT_PRODUCTS_DIR; };
