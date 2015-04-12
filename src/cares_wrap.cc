@@ -794,6 +794,33 @@ namespace node {
     }
 
 
+    NAN_METHOD(GetServers) {
+      Local<Array> server_array = NanNew<Array>();
+
+      ares_addr_node* servers;
+
+      int r = ares_get_servers(_ares_channel, &servers);
+      assert(r == ARES_SUCCESS);
+
+      ares_addr_node* cur = servers;
+
+      for (uint32_t i = 0; cur != NULL; ++i, cur = cur->next) {
+        char ip[INET6_ADDRSTRLEN];
+
+        const void* caddr = static_cast<const void*>(&cur->addr);
+        int err = uv_inet_ntop(cur->family, caddr, ip, sizeof(ip));
+        assert(err == 0);
+
+        Local<String> addr = NanNew(ip);
+        server_array->Set(i, addr);
+      }
+
+      ares_free_data(servers);
+
+      NanReturnValue(server_array);
+    }
+
+
     static void Initialize(Handle<Object> target) {
 
       int r = ares_library_init(ARES_LIB_INIT_ALL);
@@ -825,6 +852,8 @@ namespace node {
       NODE_SET_METHOD(target, "queryNaptr", Query<QueryNaptrWrap>);
       NODE_SET_METHOD(target, "querySoa", Query<QuerySoaWrap>);
       NODE_SET_METHOD(target, "getHostByAddr", Query<GetHostByAddrWrap>);
+
+      NODE_SET_METHOD(target, "getServers", GetServers);
 
       NanAssignPersistent(oncomplete_sym, NanNew("oncomplete"));
 
