@@ -320,6 +320,41 @@ namespace node {
     };
 
 
+    class QueryAaaaWrap: public QueryWrap {
+    public:
+      QueryAaaaWrap(ares_channel _ares_channel): QueryWrap(_ares_channel) {
+      }
+
+      int Send(const char* name) {
+        ares_query(this->_ares_channel,
+                   name,
+                   ns_c_in,
+                   ns_t_aaaa,
+                   Callback,
+                   GetQueryArg());
+        return 0;
+      }
+
+    protected:
+      void Parse(unsigned char* buf, int len) {
+        NanScope();
+
+        struct hostent* host;
+
+        int status = ares_parse_aaaa_reply(buf, len, &host, NULL, NULL);
+        if (status != ARES_SUCCESS) {
+          ParseError(status);
+          return;
+        }
+
+        Local<Array> addresses = HostentToAddresses(host);
+        ares_free_hostent(host);
+
+        this->CallOnComplete(addresses);
+      }
+    };
+
+
     static void Callback(void *arg, int status, int timeouts,
                          unsigned char* answer_buf, int answer_len) {
       QueryWrap* wrap = static_cast<QueryWrap*>(arg);
@@ -383,6 +418,7 @@ namespace node {
       uv_timer_init(uv_default_loop(), &ares_timer);
 
       NODE_SET_METHOD(target, "queryA", Query<QueryAWrap>);
+      NODE_SET_METHOD(target, "queryAaaa", Query<QueryAaaaWrap>);
 
       NanAssignPersistent(oncomplete_sym, NanNew<String>("oncomplete"));
 
