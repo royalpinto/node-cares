@@ -291,7 +291,10 @@ namespace node {
         assert(status != ARES_SUCCESS);
 
         NanScope();
-        Local<Value> argv[1] = { NanNew<Integer>(status) };
+        Local<Object> obj = NanNew<Object>();
+        obj->Set(NanNew("code"), NanNew<Integer>(status));
+        obj->Set(NanNew("message"), NanNew(ares_strerror(status)));
+        Local<Value> argv[1] = { obj };
         NanMakeCallback(NanNew(object_), NanNew(oncomplete_sym), ARRAY_SIZE(argv), argv);
       }
 
@@ -878,14 +881,21 @@ namespace node {
         last = cur;
       }
 
-      if (err == 0)
+      if (err == ARES_SUCCESS)
         err = ares_set_servers(_ares_channel, &servers[0]);
       else
         err = ARES_EBADSTR;
 
       delete[] servers;
 
-      NanReturnValue(err);
+      if (err == ARES_SUCCESS) {
+        NanReturnNull();
+      } else {
+        Local<Object> obj = NanNew<Object>();
+        obj->Set(NanNew("code"), NanNew<Integer>(err));
+        obj->Set(NanNew("message"), NanNew(ares_strerror(err)));
+        NanReturnValue(obj);
+      }
     }
 
 
