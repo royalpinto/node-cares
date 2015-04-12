@@ -821,6 +821,74 @@ namespace node {
     }
 
 
+    NAN_METHOD(SetServers) {
+      NanScope();
+
+      assert(args[0]->IsArray());
+
+      Local<Array> arr = Local<Array>::Cast(args[0]);
+
+      uint32_t len = arr->Length();
+
+      if (len == 0) {
+        int rv = ares_set_servers(_ares_channel, NULL);
+        return args.GetReturnValue().Set(rv);
+      }
+
+      ares_addr_node* servers = new ares_addr_node[len];
+      ares_addr_node* last = NULL;
+
+      int err;
+
+      for (uint32_t i = 0; i < len; i++) {
+        assert(arr->Get(i)->IsArray());
+
+        Local<Array> elm = Local<Array>::Cast(arr->Get(i));
+
+        assert(elm->Get(0)->Int32Value());
+        assert(elm->Get(1)->IsString());
+
+        int fam = elm->Get(0)->Int32Value();
+        NanUtf8String ip(elm->Get(1));
+
+        ares_addr_node* cur = &servers[i];
+
+        switch (fam) {
+          case 4:
+            cur->family = AF_INET;
+            err = uv_inet_pton(AF_INET, *ip, &cur->addr);
+            break;
+          case 6:
+            cur->family = AF_INET6;
+            err = uv_inet_pton(AF_INET6, *ip, &cur->addr);
+            break;
+          default:
+            assert(0 && "Bad address family.");
+            abort();
+        }
+
+        if (err)
+          break;
+
+        cur->next = NULL;
+
+        if (last != NULL)
+          last->next = cur;
+
+        last = cur;
+      }
+
+      if (err == 0)
+        err = ares_set_servers(_ares_channel, &servers[0]);
+      else
+        err = ARES_EBADSTR;
+
+      delete[] servers;
+
+      NanReturnValue(err);
+    }
+
+
     static void Initialize(Handle<Object> target) {
 
       int r = ares_library_init(ARES_LIB_INIT_ALL);
@@ -854,6 +922,7 @@ namespace node {
       NODE_SET_METHOD(target, "getHostByAddr", Query<GetHostByAddrWrap>);
 
       NODE_SET_METHOD(target, "getServers", GetServers);
+      NODE_SET_METHOD(target, "setServers", SetServers);
 
       NanAssignPersistent(oncomplete_sym, NanNew("oncomplete"));
 
