@@ -54,6 +54,28 @@
 #endif
 
 
+// since uv_inet_pton and uv_inet_ntop signature varies from
+// one version to another version of node, defining a warp function
+// which takes care of version specfic implementation.
+int wrap_uv_inet_pton(int af, const char* src, void* dst)
+{
+#if (NODE_MODULE_VERSION < NODE_0_12_MODULE_VERSION)
+  return uv_inet_pton(af, src, dst).code;
+#else
+  return uv_inet_pton(af, src, dst);
+#endif
+}
+
+int wrap_uv_inet_ntop(int af, const void* src, char* dst, size_t size)
+{
+#if (NODE_MODULE_VERSION < NODE_0_12_MODULE_VERSION)
+  return uv_inet_ntop(af, src, dst, size).code;
+#else
+  return uv_inet_ntop(af, src, dst, size);
+#endif
+}
+
+
 namespace node {
 
   namespace cares_wrap {
@@ -213,7 +235,7 @@ namespace node {
 
       char ip[INET6_ADDRSTRLEN];
       for (int i = 0; host->h_addr_list[i]; ++i) {
-        uv_inet_ntop(host->h_addrtype, host->h_addr_list[i], ip, sizeof(ip));
+        wrap_uv_inet_ntop(host->h_addrtype, host->h_addr_list[i], ip, sizeof(ip));
 
         Local<String> address = NanNew(ip);
         addresses->Set(NanNew<Integer>(i), address);
@@ -231,7 +253,7 @@ namespace node {
         names->Set(i, address);
       }
 
-      return scope.Escape(names);
+      return NanEscapeScope(names);
     }
 
 
@@ -716,10 +738,10 @@ namespace node {
         int length, family;
         char address_buffer[sizeof(struct in6_addr)];
 
-        if (uv_inet_pton(AF_INET, name, &address_buffer) == 0) {
+        if (wrap_uv_inet_pton(AF_INET, name, &address_buffer) == 0) {
           length = sizeof(struct in_addr);
           family = AF_INET;
-        } else if (uv_inet_pton(AF_INET6, name, &address_buffer) == 0) {
+        } else if (wrap_uv_inet_pton(AF_INET6, name, &address_buffer) == 0) {
           length = sizeof(struct in6_addr);
           family = AF_INET6;
         } else {
@@ -798,6 +820,8 @@ namespace node {
 
 
     NAN_METHOD(GetServers) {
+      NanScope();
+
       Local<Array> server_array = NanNew<Array>();
 
       ares_addr_node* servers;
@@ -811,7 +835,7 @@ namespace node {
         char ip[INET6_ADDRSTRLEN];
 
         const void* caddr = static_cast<const void*>(&cur->addr);
-        int err = uv_inet_ntop(cur->family, caddr, ip, sizeof(ip));
+        int err = wrap_uv_inet_ntop(cur->family, caddr, ip, sizeof(ip));
         assert(err == 0);
 
         Local<String> addr = NanNew(ip);
@@ -835,7 +859,7 @@ namespace node {
 
       if (len == 0) {
         int rv = ares_set_servers(_ares_channel, NULL);
-        return args.GetReturnValue().Set(rv);
+        NanReturnValue(NanNew<Integer>(rv));
       }
 
       ares_addr_node* servers = new ares_addr_node[len];
@@ -859,11 +883,11 @@ namespace node {
         switch (fam) {
           case 4:
             cur->family = AF_INET;
-            err = uv_inet_pton(AF_INET, *ip, &cur->addr);
+            err = wrap_uv_inet_pton(AF_INET, *ip, &cur->addr);
             break;
           case 6:
             cur->family = AF_INET6;
-            err = uv_inet_pton(AF_INET6, *ip, &cur->addr);
+            err = wrap_uv_inet_pton(AF_INET6, *ip, &cur->addr);
             break;
           default:
             assert(0 && "Bad address family.");
