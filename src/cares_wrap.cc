@@ -282,6 +282,9 @@ namespace node {
         return NanNew(object_);
       }
 
+      void SetOptions(Handle<Value> options) {
+      }
+
       void SetOnComplete(Handle<Value> oncomplete) {
         assert(oncomplete->IsFunction());
         Local<Object> obj = NanNew(object_);
@@ -291,6 +294,16 @@ namespace node {
       void CallOnComplete(Local<Value> answer) {
         NanScope();
         Local<Value> argv[2] = { NanNew<Integer>(0), answer };
+        NanMakeCallback(NanNew(object_), NanNew(oncomplete_sym), ARRAY_SIZE(argv), argv);
+      }
+
+      void CallOnComplete(Local<Value> answer, Local<Value> family) {
+        NanScope();
+        Local<Value> argv[] = {
+          NanNew<Integer>(0),
+          answer,
+          family
+        };
         NanMakeCallback(NanNew(object_), NanNew(oncomplete_sym), ARRAY_SIZE(argv), argv);
       }
 
@@ -765,6 +778,41 @@ namespace node {
     };
 
 
+    class GetHostByNameWrap: public QueryWrap {
+    public:
+      explicit GetHostByNameWrap(ares_channel _ares_channel): QueryWrap(_ares_channel) {
+        family=AF_UNSPEC;
+      }
+
+      void SetOptions(Handle<Value> options) {
+        if (options->IsObject()) {
+          family = options->ToObject()->Get(NanNew("family"))->Int32Value();
+        }
+      }
+
+      int Send(const char* name) {
+        ares_gethostbyname(this->_ares_channel,
+                           name,
+                           family,
+                           Callback,
+                           GetQueryArg());
+        return 0;
+      }
+
+    protected:
+      void Parse(struct hostent* host) {
+        NanScope();
+
+        Local<Array> addresses = HostentToAddresses(host);
+        Local<Integer> family = NanNew<Integer>(host->h_addrtype);
+
+        this->CallOnComplete(addresses, family);
+      }
+    private:
+      int family;
+    };
+
+
     static void Callback(void *arg, int status, int timeouts,
                          unsigned char* answer_buf, int answer_len) {
       QueryWrap* wrap = static_cast<QueryWrap*>(arg);
@@ -796,11 +844,12 @@ namespace node {
 
       assert(!args.IsConstructCall());
       assert(args[0]->IsString());
-      assert(args[1]->IsFunction());
+      assert(args[2]->IsFunction());
 
       //Local<Object> req_wrap_obj = args[0].As<Object>();
       Wrap* wrap = new Wrap(_ares_channel);
-      wrap->SetOnComplete(args[1]);
+      wrap->SetOptions(args[1]);
+      wrap->SetOnComplete(args[2]);
 
       // We must cache the wrap's js object here, because cares might make the
       // callback from the wrap->Send stack. This will destroy the wrap's internal
@@ -954,9 +1003,13 @@ namespace node {
       NODE_SET_METHOD(target, "queryNaptr", Query<QueryNaptrWrap>);
       NODE_SET_METHOD(target, "querySoa", Query<QuerySoaWrap>);
       NODE_SET_METHOD(target, "getHostByAddr", Query<GetHostByAddrWrap>);
+      NODE_SET_METHOD(target, "getHostByName", Query<GetHostByNameWrap>);
 
       NODE_SET_METHOD(target, "getServers", GetServers);
       NODE_SET_METHOD(target, "setServers", SetServers);
+
+      target->Set(NanNew("AF_INET"), NanNew<Integer>(AF_INET));
+      target->Set(NanNew("AF_INET6"), NanNew<Integer>(AF_INET6));
 
       NanAssignPersistent(oncomplete_sym, NanNew("oncomplete"));
 
