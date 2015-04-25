@@ -81,6 +81,7 @@ namespace node {
   namespace cares_wrap {
 
     using v8::Array;
+    using v8::FunctionTemplate;
     using v8::Handle;
     using v8::HandleScope;
     using v8::Integer;
@@ -90,6 +91,10 @@ namespace node {
     using v8::String;
     using v8::Value;
 
+    static Persistent<String> oncomplete_sym;
+
+    class Resolver;
+
     static void Callback(void *arg, int status, int timeouts,
                          unsigned char* answer_buf, int answer_len);
 
@@ -98,14 +103,12 @@ namespace node {
 
     struct ares_task_t {
       UV_HANDLE_FIELDS
+      Resolver* resolver;
       ares_socket_t sock;
       uv_poll_t poll_watcher;
       RB_ENTRY(ares_task_t) node;
     };
 
-    static Persistent<String> oncomplete_sym;
-    static ares_channel _ares_channel;
-    static uv_timer_t ares_timer;
     static RB_HEAD(ares_task_list, ares_task_t) ares_tasks;
 
 
@@ -118,12 +121,63 @@ namespace node {
 
     RB_GENERATE_STATIC(ares_task_list, ares_task_t, node, cmp_ares_tasks)
 
+    static void ares_sockstate_cb(void* data, ares_socket_t sock, int read, int write);
+
+    class Resolver: public node::ObjectWrap {
+    public:
+      static void Initialize(Handle<Object> target);
+
+      inline ares_task_list* cares_task_list() {
+        return &_ares_task_list;
+      }
+
+      inline uv_timer_t* cares_timer_handle() {
+        return &ares_timer;
+      }
+
+      ares_channel _ares_channel;
+
+    private:
+      static NAN_METHOD(New);
+
+      Resolver()
+      : ObjectWrap() {
+        int r;
+
+        RB_INIT(&_ares_task_list);
+
+        struct ares_options options;
+        memset(&options, 0, sizeof(options));
+        options.flags = ARES_FLAG_NOCHECKRESP;
+        options.sock_state_cb = ares_sockstate_cb;
+        options.sock_state_cb_data = this;
+
+        /* We do the call to ares_init_option for caller. */
+        r = ares_init_options(&_ares_channel,
+                              &options,
+                              ARES_OPT_FLAGS | ARES_OPT_SOCK_STATE_CB);
+        assert(r == ARES_SUCCESS);
+
+        /* Initialize the timeout timer. The timer won't be started until the */
+        /* first socket is opened. */
+
+        uv_timer_init(uv_default_loop(), &ares_timer);
+      }
+
+      ~Resolver() {
+      }
+
+      ares_task_list _ares_task_list;
+      uv_timer_t ares_timer;
+    };
+
 
     /* This is called once per second by loop->timer. It is used to constantly */
     /* call back into c-ares for possibly processing timeouts. */
     static void ares_timeout(uv_timer_t* handle) {
+      Resolver *resolver = (Resolver*)handle->data;
       assert(!RB_EMPTY(&ares_tasks));
-      ares_process_fd(_ares_channel, ARES_SOCKET_BAD, ARES_SOCKET_BAD);
+      ares_process_fd(resolver->_ares_channel, ARES_SOCKET_BAD, ARES_SOCKET_BAD);
     }
 
     /* This is called once per second by loop->timer. It is used to constantly */
@@ -136,17 +190,17 @@ namespace node {
     static void ares_poll_cb(uv_poll_t* watcher, int status, int events) {
       ares_task_t* task = container_of(watcher, ares_task_t, poll_watcher);
       /* Reset the idle timer */
-      uv_timer_again(&ares_timer);
+      uv_timer_again(task->resolver->cares_timer_handle());
 
       if (status < 0) {
         /* An error happened. Just pretend that the socket is both readable and */
         /* writable. */
-        ares_process_fd(_ares_channel, task->sock, task->sock);
+        ares_process_fd(task->resolver->_ares_channel, task->sock, task->sock);
         return;
       }
 
       /* Process DNS responses */
-      ares_process_fd(_ares_channel,
+      ares_process_fd(task->resolver->_ares_channel,
                       events & UV_READABLE ? task->sock : ARES_SOCKET_BAD,
                       events & UV_WRITABLE ? task->sock : ARES_SOCKET_BAD);
     }
@@ -157,7 +211,7 @@ namespace node {
     }
 
     /* Allocates and returns a new ares_task_t */
-    static ares_task_t* ares_task_create(uv_loop_t* loop, ares_socket_t sock) {
+    static ares_task_t* ares_task_create(Resolver* resolver, ares_socket_t sock) {
       ares_task_t* task = (ares_task_t*) malloc(sizeof *task);
 
       if (task == NULL) {
@@ -165,10 +219,10 @@ namespace node {
         return NULL;
       }
 
-      task->loop = loop;
+      task->resolver = resolver;
       task->sock = sock;
 
-      if (uv_poll_init_socket(loop, &task->poll_watcher, sock) < 0) {
+      if (uv_poll_init_socket(uv_default_loop(), &task->poll_watcher, sock) < 0) {
         /* This should never happen. */
         free(task);
         return NULL;
@@ -179,7 +233,8 @@ namespace node {
 
     /* Callback from ares when socket operation is started */
     static void ares_sockstate_cb(void* data, ares_socket_t sock, int read, int write) {
-      uv_loop_t* loop = (uv_loop_t*) data;
+
+      Resolver *resolver = (Resolver*)data;
       ares_task_t* task;
 
       ares_task_t lookup_task;
@@ -191,12 +246,13 @@ namespace node {
           /* New socket */
 
           /* If this is the first socket then start the timer. */
-          if (!uv_is_active((uv_handle_t*) &ares_timer)) {
+          uv_timer_t* timer_handle = resolver->cares_timer_handle();
+          if (!uv_is_active((uv_handle_t*) &timer_handle)) {
             assert(RB_EMPTY(&ares_tasks));
-            uv_timer_start(&ares_timer, ares_timeout, 1000, 1000);
+            uv_timer_start(timer_handle, ares_timeout, 1000, 1000);
           }
 
-          task = ares_task_create(loop, sock);
+          task = ares_task_create(resolver, sock);
           if (task == NULL) {
             /* This should never happen unless we're out of memory or something */
             /* is seriously wrong. The socket won't be polled, but the the query */
@@ -224,7 +280,7 @@ namespace node {
         uv_close((uv_handle_t*) &task->poll_watcher, ares_poll_close_cb);
 
         if (RB_EMPTY(&ares_tasks)) {
-          uv_timer_stop(&ares_timer);
+          uv_timer_stop(resolver->cares_timer_handle());
         }
       }
     }
@@ -842,12 +898,14 @@ namespace node {
     NAN_METHOD(Query) {
       NanScope();
 
+      Resolver* resolver = ObjectWrap::Unwrap<Resolver>(args.Holder());
+
       assert(!args.IsConstructCall());
       assert(args[0]->IsString());
       assert(args[2]->IsFunction());
 
       //Local<Object> req_wrap_obj = args[0].As<Object>();
-      Wrap* wrap = new Wrap(_ares_channel);
+      Wrap* wrap = new Wrap(resolver->_ares_channel);
       wrap->SetOptions(args[1]);
       wrap->SetOnComplete(args[2]);
 
@@ -875,7 +933,9 @@ namespace node {
 
       ares_addr_node* servers;
 
-      int r = ares_get_servers(_ares_channel, &servers);
+      Resolver* resolver = ObjectWrap::Unwrap<Resolver>(args.Holder());
+
+      int r = ares_get_servers(resolver->_ares_channel, &servers);
       assert(r == ARES_SUCCESS);
 
       ares_addr_node* cur = servers;
@@ -906,8 +966,10 @@ namespace node {
 
       uint32_t len = arr->Length();
 
+      Resolver* resolver = ObjectWrap::Unwrap<Resolver>(args.Holder());
+
       if (len == 0) {
-        int rv = ares_set_servers(_ares_channel, NULL);
+        int rv = ares_set_servers(resolver->_ares_channel, NULL);
         NanReturnValue(NanNew<Integer>(rv));
       }
 
@@ -955,7 +1017,7 @@ namespace node {
       }
 
       if (err == ARES_SUCCESS)
-        err = ares_set_servers(_ares_channel, &servers[0]);
+        err = ares_set_servers(resolver->_ares_channel, &servers[0]);
       else
         err = ARES_EBADSTR;
 
@@ -972,46 +1034,53 @@ namespace node {
     }
 
 
+    NAN_METHOD(Resolver::New) {
+      // This constructor should not be exposed to public javascript.
+      // Therefore we assert that we are not trying to call this as a
+      // normal function.
+      NanScope();
+      assert(args.IsConstructCall());
+      Resolver *resolver = new Resolver();
+      resolver->Wrap(args.This());
+      args.GetReturnValue().Set(args.This());
+    }
+
+
+    void Resolver::Initialize(Handle<Object> target) {
+      Local<FunctionTemplate> constructor = NanNew<FunctionTemplate>(New);
+      constructor->InstanceTemplate()->SetInternalFieldCount(1);
+      constructor->SetClassName(NanNew("Resolver"));
+
+      NODE_SET_PROTOTYPE_METHOD(constructor, "queryA", Query<QueryAWrap>);
+      NODE_SET_PROTOTYPE_METHOD(constructor, "queryAaaa", Query<QueryAaaaWrap>);
+      NODE_SET_PROTOTYPE_METHOD(constructor, "queryCname", Query<QueryCnameWrap>);
+      NODE_SET_PROTOTYPE_METHOD(constructor, "queryMx", Query<QueryMxWrap>);
+      NODE_SET_PROTOTYPE_METHOD(constructor, "queryNs", Query<QueryNsWrap>);
+      NODE_SET_PROTOTYPE_METHOD(constructor, "queryTxt", Query<QueryTxtWrap>);
+      NODE_SET_PROTOTYPE_METHOD(constructor, "querySrv", Query<QuerySrvWrap>);
+      NODE_SET_PROTOTYPE_METHOD(constructor, "queryNaptr", Query<QueryNaptrWrap>);
+      NODE_SET_PROTOTYPE_METHOD(constructor, "querySoa", Query<QuerySoaWrap>);
+      NODE_SET_PROTOTYPE_METHOD(constructor, "getHostByAddr", Query<GetHostByAddrWrap>);
+      NODE_SET_PROTOTYPE_METHOD(constructor, "getHostByName", Query<GetHostByNameWrap>);
+
+      NODE_SET_PROTOTYPE_METHOD(constructor, "getServers", GetServers);
+      NODE_SET_PROTOTYPE_METHOD(constructor, "setServers", SetServers);
+
+      target->Set(NanNew("Resolver"), constructor->GetFunction());
+    };
+
+
     static void Initialize(Handle<Object> target) {
 
       int r = ares_library_init(ARES_LIB_INIT_ALL);
       assert(r == ARES_SUCCESS);
 
-      struct ares_options options;
-      memset(&options, 0, sizeof(options));
-      options.flags = ARES_FLAG_NOCHECKRESP;
-      options.sock_state_cb = ares_sockstate_cb;
-      options.sock_state_cb_data = uv_default_loop();
-
-      /* We do the call to ares_init_option for caller. */
-      r = ares_init_options(&_ares_channel,
-                            &options,
-                            ARES_OPT_FLAGS | ARES_OPT_SOCK_STATE_CB);
-      assert(r == ARES_SUCCESS);
-
-      /* Initialize the timeout timer. The timer won't be started until the */
-      /* first socket is opened. */
-      uv_timer_init(uv_default_loop(), &ares_timer);
-
-      NODE_SET_METHOD(target, "queryA", Query<QueryAWrap>);
-      NODE_SET_METHOD(target, "queryAaaa", Query<QueryAaaaWrap>);
-      NODE_SET_METHOD(target, "queryCname", Query<QueryCnameWrap>);
-      NODE_SET_METHOD(target, "queryMx", Query<QueryMxWrap>);
-      NODE_SET_METHOD(target, "queryNs", Query<QueryNsWrap>);
-      NODE_SET_METHOD(target, "queryTxt", Query<QueryTxtWrap>);
-      NODE_SET_METHOD(target, "querySrv", Query<QuerySrvWrap>);
-      NODE_SET_METHOD(target, "queryNaptr", Query<QueryNaptrWrap>);
-      NODE_SET_METHOD(target, "querySoa", Query<QuerySoaWrap>);
-      NODE_SET_METHOD(target, "getHostByAddr", Query<GetHostByAddrWrap>);
-      NODE_SET_METHOD(target, "getHostByName", Query<GetHostByNameWrap>);
-
-      NODE_SET_METHOD(target, "getServers", GetServers);
-      NODE_SET_METHOD(target, "setServers", SetServers);
-
       target->Set(NanNew("AF_INET"), NanNew<Integer>(AF_INET));
       target->Set(NanNew("AF_INET6"), NanNew<Integer>(AF_INET6));
 
       NanAssignPersistent(oncomplete_sym, NanNew("oncomplete"));
+
+      Resolver::Initialize(target);
 
     }
 
