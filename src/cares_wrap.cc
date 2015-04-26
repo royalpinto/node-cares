@@ -286,6 +286,42 @@ namespace node {
     }
 
 
+    static const char* AresErrnoString(int errorno) {
+      switch (errorno) {
+#define ERRNO_CASE(e) case ARES_##e: return #e;
+          ERRNO_CASE(SUCCESS)
+          ERRNO_CASE(ENODATA)
+          ERRNO_CASE(EFORMERR)
+          ERRNO_CASE(ESERVFAIL)
+          ERRNO_CASE(ENOTFOUND)
+          ERRNO_CASE(ENOTIMP)
+          ERRNO_CASE(EREFUSED)
+          ERRNO_CASE(EBADQUERY)
+          ERRNO_CASE(EBADNAME)
+          ERRNO_CASE(EBADFAMILY)
+          ERRNO_CASE(EBADRESP)
+          ERRNO_CASE(ECONNREFUSED)
+          ERRNO_CASE(ETIMEOUT)
+          ERRNO_CASE(EOF)
+          ERRNO_CASE(EFILE)
+          ERRNO_CASE(ENOMEM)
+          ERRNO_CASE(EDESTRUCTION)
+          ERRNO_CASE(EBADSTR)
+          ERRNO_CASE(EBADFLAGS)
+          ERRNO_CASE(ENONAME)
+          ERRNO_CASE(EBADHINTS)
+          ERRNO_CASE(ENOTINITIALIZED)
+          ERRNO_CASE(ELOADIPHLPAPI)
+          ERRNO_CASE(EADDRGETNETWORKPARAMS)
+          ERRNO_CASE(ECANCELLED)
+#undef ERRNO_CASE
+        default:
+          assert(0 && "Unhandled c-ares error");
+          return "(UNKNOWN)";
+      }
+    }
+
+
     static Local<Array> HostentToAddresses(struct hostent* host) {
       Local<Array> addresses = NanNew<Array>();
 
@@ -383,7 +419,8 @@ namespace node {
 
         NanScope();
         Local<Object> obj = NanNew<Object>();
-        obj->Set(NanNew("code"), NanNew<Integer>(status));
+        obj->Set(NanNew("status"), NanNew<Integer>(status));
+        obj->Set(NanNew("errorno"), NanNew(AresErrnoString(status)));
         obj->Set(NanNew("message"), NanNew(ares_strerror(status)));
         Local<Value> argv[1] = { obj };
         NanMakeCallback(NanNew(object_), NanNew(oncomplete_sym), ARRAY_SIZE(argv), argv);
@@ -1027,7 +1064,8 @@ namespace node {
         NanReturnNull();
       } else {
         Local<Object> obj = NanNew<Object>();
-        obj->Set(NanNew("code"), NanNew<Integer>(err));
+        obj->Set(NanNew("status"), NanNew<Integer>(err));
+        obj->Set(NanNew("errorno"), NanNew(AresErrnoString(err)));
         obj->Set(NanNew("message"), NanNew(ares_strerror(err)));
         NanReturnValue(obj);
       }
