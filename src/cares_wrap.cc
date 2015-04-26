@@ -1080,7 +1080,7 @@ namespace node {
       assert(args.IsConstructCall());
       Resolver *resolver = new Resolver();
       resolver->Wrap(args.This());
-      args.GetReturnValue().Set(args.This());
+      NanReturnValue(args.This());
     }
 
 
