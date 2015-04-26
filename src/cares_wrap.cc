@@ -21,6 +21,7 @@
 
 #define CARES_STATICLIB
 #include "ares.h"
+#include "ares_dns.h"
 #include "node.h"
 #include "nan.h"
 #include "tree.h"
@@ -97,6 +98,9 @@ namespace node {
 
     static void Callback(void *arg, int status, int timeouts,
                          unsigned char* answer_buf, int answer_len);
+
+    static void GenericQueryCallback(void *arg, int status, int timeouts,
+                                     unsigned char* answer_buf, int answer_len);
 
     static void Callback(void *arg, int status, int timeouts,
                          struct hostent* host);
@@ -322,6 +326,337 @@ namespace node {
     }
 
 
+    static const unsigned char *fill_question(const unsigned char *aptr,
+                                              const unsigned char *abuf,
+                                              int alen,
+                                              Local<Array> questions) {
+      Local<Object> question = NanNew<Object>();
+      char *name;
+      int type, dnsclass, status;
+      long len;
+
+      /* Parse the question name. */
+      status = ares_expand_name(aptr, abuf, alen, &name, &len);
+      if (status != ARES_SUCCESS)
+        return NULL;
+      aptr += len;
+
+      /* Make sure there's enough data after the name for the fixed part
+       * of the question.
+       */
+      if (aptr + NS_QFIXEDSZ > abuf + alen)
+      {
+        ares_free_string(name);
+        return NULL;
+      }
+
+      /* Parse the question type and class. */
+      type = DNS_QUESTION_TYPE(aptr);
+      dnsclass = DNS_QUESTION_CLASS(aptr);
+      aptr += NS_QFIXEDSZ;
+
+      /* Display the question, in a format sort of similar to how we will
+       * display RRs.
+       */
+
+      question->Set(NanNew("name"), NanNew(name));
+      question->Set(NanNew("type"), NanNew<Integer>(type));
+      question->Set(NanNew("class"), NanNew<Integer>(dnsclass));
+
+      questions->Set(questions->Length(), question);
+
+      ares_free_string(name);
+      return aptr;
+    }
+
+
+
+    static const unsigned char *fill_rr(const unsigned char *aptr,
+                                        const unsigned char *abuf,
+                                        int alen,
+                                        Local<Array> records) {
+      Local<Object> record = NanNew<Object>();
+      const unsigned char *p;
+      int type, dnsclass, ttl, dlen, status;
+      long len;
+      char addr[46];
+      union {
+        unsigned char * as_uchar;
+        char * as_char;
+      } name;
+
+      /* Parse the RR name. */
+      status = ares_expand_name(aptr, abuf, alen, &name.as_char, &len);
+      if (status != ARES_SUCCESS)
+        return NULL;
+      aptr += len;
+
+      /* Make sure there is enough data after the RR name for the fixed
+       * part of the RR.
+       */
+      if (aptr + NS_RRFIXEDSZ > abuf + alen)
+      {
+        ares_free_string(name.as_char);
+        return NULL;
+      }
+
+      /* Parse the fixed part of the RR, and advance to the RR data
+       * field. */
+      type = DNS_RR_TYPE(aptr);
+      dnsclass = DNS_RR_CLASS(aptr);
+      ttl = DNS_RR_TTL(aptr);
+      dlen = DNS_RR_LEN(aptr);
+      aptr += NS_RRFIXEDSZ;
+      if (aptr + dlen > abuf + alen)
+      {
+        ares_free_string(name.as_char);
+        return NULL;
+      }
+
+      /* Fill the RR name, class, and type. */
+      record->Set(NanNew("name"), NanNew(name.as_char));
+      record->Set(NanNew("class"), NanNew<Integer>(dnsclass));
+      record->Set(NanNew("type"), NanNew<Integer>(type));
+      record->Set(NanNew("ttl"), NanNew<Integer>(ttl));
+      ares_free_string(name.as_char);
+
+      /* Display the RR data.  Don't touch aptr. */
+      switch (type)
+      {
+        case ns_t_cname: //T_CNAME:
+        case ns_t_mb: //T_MB:
+        case ns_t_md: //T_MD:
+        case ns_t_mf: //T_MF:
+        case ns_t_mg: //T_MG:
+        case ns_t_mr: //T_MR:
+        case ns_t_ns: //T_NS:
+        case ns_t_ptr: //T_PTR:
+          /* For these types, the RR data is just a domain name. */
+          status = ares_expand_name(aptr, abuf, alen, &name.as_char, &len);
+          if (status != ARES_SUCCESS)
+            return NULL;
+          record->Set(NanNew("data"), NanNew(name.as_char));
+          ares_free_string(name.as_char);
+          break;
+
+        case ns_t_hinfo: //T_HINFO:
+        {
+          /* The RR data is two length-counted character strings. */
+          Local<Array> strings = NanNew<Array>();
+          p = aptr;
+          len = *p;
+          if (p + len + 1 > aptr + dlen)
+            return NULL;
+          status = ares_expand_string(p, abuf, alen, &name.as_uchar, &len);
+          if (status != ARES_SUCCESS)
+            return NULL;
+          strings->Set(strings->Length(), NanNew(name.as_char));
+          ares_free_string(name.as_char);
+          p += len;
+          len = *p;
+          if (p + len + 1 > aptr + dlen)
+            return NULL;
+          status = ares_expand_string(p, abuf, alen, &name.as_uchar, &len);
+          if (status != ARES_SUCCESS)
+            return NULL;
+          strings->Set(strings->Length(), NanNew(name.as_char));
+          ares_free_string(name.as_char);
+          record->Set(NanNew("data"), strings);
+          break;
+        }
+
+        case ns_t_minfo: //T_MINFO:
+        {
+          /* The RR data is two domain names. */
+          Local<Array> strings = NanNew<Array>();
+          p = aptr;
+          status = ares_expand_name(p, abuf, alen, &name.as_char, &len);
+          if (status != ARES_SUCCESS)
+            return NULL;
+          strings->Set(strings->Length(), NanNew(name.as_char));
+          ares_free_string(name.as_char);
+          p += len;
+          status = ares_expand_name(p, abuf, alen, &name.as_char, &len);
+          if (status != ARES_SUCCESS)
+            return NULL;
+          strings->Set(strings->Length(), NanNew(name.as_char));
+          ares_free_string(name.as_char);
+          record->Set(NanNew("data"), strings);
+          break;
+        }
+
+        case ns_t_mx: //T_MX:
+          /* The RR data is two bytes giving a preference ordering, and
+           * then a domain name.
+           */
+          if (dlen < 2)
+            return NULL;
+          record->Set(NanNew("priority"),
+                      NanNew<Integer>((int)DNS__16BIT(aptr)));
+          status = ares_expand_name(aptr + 2, abuf, alen, &name.as_char, &len);
+          if (status != ARES_SUCCESS)
+            return NULL;
+          record->Set(NanNew("exchange"),
+                      NanNew(name.as_char));
+          ares_free_string(name.as_char);
+          break;
+
+        case ns_t_soa: //T_SOA:
+          /* The RR data is two domain names and then five four-byte
+           * numbers giving the serial number and some timeouts.
+           */
+          p = aptr;
+          status = ares_expand_name(p, abuf, alen, &name.as_char, &len);
+          if (status != ARES_SUCCESS)
+            return NULL;
+          record->Set(NanNew("primary"),
+                      NanNew(name.as_char));
+          ares_free_string(name.as_char);
+          p += len;
+          status = ares_expand_name(p, abuf, alen, &name.as_char, &len);
+          if (status != ARES_SUCCESS)
+            return NULL;
+
+          record->Set(NanNew("admin"),
+                      NanNew(name.as_char));
+          ares_free_string(name.as_char);
+          p += len;
+          if (p + 20 > aptr + dlen)
+            return NULL;
+
+          record->Set(NanNew("serial"),
+                      NanNew<Integer>(DNS__32BIT(p)));
+          record->Set(NanNew("refresh"),
+                      NanNew<Integer>(DNS__32BIT(p+4)));
+          record->Set(NanNew("retry"),
+                      NanNew<Integer>(DNS__32BIT(p+8)));
+          record->Set(NanNew("expiration"),
+                      NanNew<Integer>(DNS__32BIT(p+12)));
+          record->Set(NanNew("minimum"),
+                      NanNew<Integer>(DNS__32BIT(p+16)));
+          break;
+
+        case ns_t_txt: //T_TXT:
+        {
+          /* The RR data is one or more length-counted character
+           * strings. */
+          p = aptr;
+          Local<Array> txts = NanNew<Array>();
+          while (p < aptr + dlen)
+          {
+            len = *p;
+            if (p + len + 1 > aptr + dlen)
+              return NULL;
+            status = ares_expand_string(p, abuf, alen, &name.as_uchar, &len);
+            if (status != ARES_SUCCESS)
+              return NULL;
+            txts->Set(txts->Length(), NanNew(name.as_char));
+            ares_free_string(name.as_char);
+            p += len;
+          }
+          record->Set(NanNew("data"), txts);
+          break;
+        }
+
+        case ns_t_a: //T_A:
+          /* The RR data is a four-byte Internet address. */
+          if (dlen != 4)
+            return NULL;
+          uv_inet_ntop(AF_INET, aptr, addr, sizeof(addr));
+          record->Set(NanNew("address"), NanNew(addr));
+          break;
+
+        case ns_t_aaaa: //T_AAAA:
+          /* The RR data is a 16-byte IPv6 address. */
+          if (dlen != 16)
+            return NULL;
+          uv_inet_ntop(AF_INET6, aptr, addr, sizeof(addr));
+          record->Set(NanNew("address"), NanNew(addr));
+          break;
+        case ns_t_wks: //T_WKS:
+          /* Not implemented yet */
+          break;
+
+        case ns_t_srv: //T_SRV:
+          /* The RR data is three two-byte numbers representing the
+           * priority, weight, and port, followed by a domain name.
+           */
+
+          record->Set(NanNew("priority"),
+                      NanNew<Integer>((int)DNS__16BIT(aptr)));
+          record->Set(NanNew("weight"),
+                      NanNew<Integer>((int)DNS__16BIT(aptr + 2)));
+          record->Set(NanNew("port"),
+                      NanNew<Integer>((int)DNS__16BIT(aptr + 4)));
+
+
+          status = ares_expand_name(aptr + 6, abuf, alen, &name.as_char, &len);
+          if (status != ARES_SUCCESS)
+            return NULL;
+          record->Set(NanNew("target"),
+                      NanNew(name.as_char));
+          ares_free_string(name.as_char);
+          break;
+
+        case ns_t_naptr://T_NAPTR:
+
+          record->Set(NanNew("order"),
+                      NanNew<Integer>((int)DNS__16BIT(aptr)));
+          record->Set(NanNew("preference"),
+                      NanNew<Integer>((int)DNS__16BIT(aptr + 2)));
+
+          p = aptr + 4;
+          status = ares_expand_string(p, abuf, alen, &name.as_uchar, &len);
+          if (status != ARES_SUCCESS)
+            return NULL;
+
+          record->Set(NanNew("flags"),
+                      NanNew(name.as_char));
+          ares_free_string(name.as_char);
+          p += len;
+
+          status = ares_expand_string(p, abuf, alen, &name.as_uchar, &len);
+          if (status != ARES_SUCCESS)
+            return NULL;
+          record->Set(NanNew("service"),
+                      NanNew(name.as_char));
+          ares_free_string(name.as_char);
+          p += len;
+
+          status = ares_expand_string(p, abuf, alen, &name.as_uchar, &len);
+          if (status != ARES_SUCCESS)
+            return NULL;
+          record->Set(NanNew("regexp"),
+                      NanNew(name.as_char));
+          ares_free_string(name.as_char);
+          p += len;
+
+          status = ares_expand_name(p, abuf, alen, &name.as_char, &len);
+          if (status != ARES_SUCCESS)
+            return NULL;
+          record->Set(NanNew("replacement"),
+                      NanNew(name.as_char));
+          ares_free_string(name.as_char);
+          break;
+
+          //                case T_DS:
+          //                case T_SSHFP:
+          //                case T_RRSIG:
+          //                case T_NSEC:
+          //                case T_DNSKEY:
+          //                    printf("\t[RR type parsing unavailable]");
+          //                    break;
+
+        default:
+          printf("\t[Unknown RR; cannot parse]");
+          break;
+      }
+      records->Set(records->Length(), record);
+
+      return aptr + dlen;
+    }
+
+
     static Local<Array> HostentToAddresses(struct hostent* host) {
       Local<Array> addresses = NanNew<Array>();
 
@@ -434,6 +769,114 @@ namespace node {
 
     private:
       Persistent<Object> object_;
+    };
+
+
+    class QueryGenericWrap: public QueryWrap {
+    private:
+      unsigned int dnsclass;
+      unsigned int type;
+
+    public:
+      QueryGenericWrap(ares_channel _ares_channel): QueryWrap(_ares_channel) {
+      }
+
+      void SetOptions(Handle<Value> options) {
+        if (options->IsObject()) {
+          Local<Object> options_obj = options->ToObject();
+          Local<Value> classobj = options_obj->Get(NanNew("class"));
+          if (classobj->IsNumber()) {
+            dnsclass = (int)classobj->Int32Value();
+          } else {
+            dnsclass = ns_c_in;
+          }
+
+          Local<Value> typeobj = options_obj->Get(NanNew("type"));
+          if (typeobj->IsNumber()) {
+            type = (int)typeobj->Int32Value();
+          } else {
+            type = ns_t_a;
+          }
+        }
+      }
+
+      int Send(const char* name) {
+        ares_query(this->_ares_channel, name, dnsclass, type, GenericQueryCallback, GetQueryArg());
+        return 0;
+      }
+
+    protected:
+      void Parse(unsigned char* buf, int len) {
+        NanScope();
+
+        Local<Object> response = NanNew<Object>();
+
+        Local<Object> header = NanNew<Object>();
+        header->Set(NanNew("id"), NanNew<Integer>(DNS_HEADER_QID(buf)));
+        header->Set(NanNew("qr"), NanNew<Integer>(DNS_HEADER_QR(buf)));
+        header->Set(NanNew("opcode"), NanNew<Integer>(DNS_HEADER_OPCODE(buf)));
+        header->Set(NanNew("aa"), NanNew<Integer>(DNS_HEADER_AA(buf)));
+        header->Set(NanNew("tc"), NanNew<Integer>(DNS_HEADER_TC(buf)));
+        header->Set(NanNew("rd"), NanNew<Integer>(DNS_HEADER_RD(buf)));
+        header->Set(NanNew("ra"), NanNew<Integer>(DNS_HEADER_RA(buf)));
+        header->Set(NanNew("rcode"), NanNew<Integer>(DNS_HEADER_RCODE(buf)));
+        response->Set(NanNew("header"), header);
+
+        unsigned int qdcount, ancount, nscount, arcount, i;
+        const unsigned char *aptr;
+
+        qdcount = DNS_HEADER_QDCOUNT(buf);
+        ancount = DNS_HEADER_ANCOUNT(buf);
+        nscount = DNS_HEADER_NSCOUNT(buf);
+        arcount = DNS_HEADER_ARCOUNT(buf);
+
+        /* Parse the questions. */
+        Local<Array> questions = NanNew<Array>();
+        response->Set(NanNew("question"), questions);
+        aptr = buf + NS_HFIXEDSZ;
+        for (i = 0; i < qdcount; i++)
+        {
+          aptr = fill_question(aptr, buf, len, questions);
+          //TODO: Handle
+          //if (aptr == NULL)
+          //    return;
+        }
+
+        /* Parse the answers. */
+        Local<Array> answers = NanNew<Array>();
+        response->Set(NanNew("answer"), answers);
+        for (i = 0; i < ancount; i++)
+        {
+          aptr = fill_rr(aptr, buf, len, answers);
+          //TODO: Handle
+          //if (aptr == NULL)
+          //    return;
+        }
+
+        /* Parse the NS records. */
+        Local<Array> authorities = NanNew<Array>();
+        response->Set(NanNew("authority"), authorities);
+        for (i = 0; i < nscount; i++)
+        {
+          aptr = fill_rr(aptr, buf, len, authorities);
+          //TODO: Handle
+          //if (aptr == NULL)
+          //    return;
+        }
+
+        /* Parse the additional records. */
+        Local<Array> additionals = NanNew<Array>();
+        response->Set(NanNew("additional"), additionals);
+        for (i = 0; i < arcount; i++)
+        {
+          aptr = fill_rr(aptr, buf, len, additionals);
+          //TODO: Handle
+          //if (aptr == NULL)
+          //    return;
+        }
+
+        this->CallOnComplete(response);
+      }
     };
 
 
@@ -917,6 +1360,20 @@ namespace node {
       delete wrap;
     }
 
+    //For generic query this callback will be called to handle status ARES_ENODATA.
+    static void GenericQueryCallback(void *arg, int status, int timeouts,
+                         unsigned char* answer_buf, int answer_len) {
+      QueryWrap* wrap = (QueryWrap*)arg;
+
+      if (status != ARES_SUCCESS && status != ARES_ENODATA) {
+        wrap->ParseError(status);
+      } else {
+        wrap->Parse(answer_buf, answer_len);
+      }
+
+      delete wrap;
+    }
+
     static void Callback(void *arg, int status, int timeouts,
                          struct hostent* host) {
       QueryWrap* wrap = static_cast<QueryWrap*>(arg);
@@ -1089,6 +1546,7 @@ namespace node {
       constructor->InstanceTemplate()->SetInternalFieldCount(1);
       constructor->SetClassName(NanNew("Resolver"));
 
+      NODE_SET_PROTOTYPE_METHOD(constructor, "queryGeneric", Query<QueryGenericWrap>);
       NODE_SET_PROTOTYPE_METHOD(constructor, "queryA", Query<QueryAWrap>);
       NODE_SET_PROTOTYPE_METHOD(constructor, "queryAaaa", Query<QueryAaaaWrap>);
       NODE_SET_PROTOTYPE_METHOD(constructor, "queryCname", Query<QueryCnameWrap>);
