@@ -1573,6 +1573,9 @@ namespace node {
 
       target->Set(NanNew("AF_INET"), NanNew<Integer>(AF_INET));
       target->Set(NanNew("AF_INET6"), NanNew<Integer>(AF_INET6));
+      target->Set(NanNew("AF_UNSPEC"), NanNew<Integer>(AF_UNSPEC));
+      target->Set(NanNew("AI_ADDRCONFIG"), NanNew<Integer>(AI_ADDRCONFIG));
+      target->Set(NanNew("AI_V4MAPPED"), NanNew<Integer>(AI_V4MAPPED));
 
       NanAssignPersistent(oncomplete_sym, NanNew("oncomplete"));
 
