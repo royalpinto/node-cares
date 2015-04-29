@@ -9,6 +9,7 @@
         "sources": [
             "src/cares_wrap.cc"
         ],
-        "dependencies": [ "deps/cares/cares.gyp:cares" ]
+        "dependencies": [ "deps/cares/cares.gyp:cares" ],
+        "libraries": [ "-rpath ./build/Release/" ]
     }]
 }
