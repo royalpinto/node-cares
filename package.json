@@ -1,5 +1,5 @@
 {
-  "name": "node-cares",
+  "name": "cares",
   "version": "1.0.0",
   "description": "node.js interface to c-ares library",
   "main": "lib/cares.js",
