@@ -10,6 +10,6 @@
             "src/cares_wrap.cc"
         ],
         "dependencies": [ "deps/cares/cares.gyp:cares" ],
-        "libraries": [ "-rpath ./build/Release/" ]
+        "libraries": [ "-Wl,-rpath,<!(pwd)/build/Release/" ]
     }]
 }
