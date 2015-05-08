@@ -144,22 +144,60 @@ namespace node {
     private:
       static NAN_METHOD(New);
 
-      Resolver()
+      Resolver(Local<Object> options_obj)
       : ObjectWrap() {
         int r;
+        int optmask = ARES_OPT_FLAGS | ARES_OPT_SOCK_STATE_CB;
+        int flags = ARES_FLAG_NOCHECKRESP;
 
         RB_INIT(&_ares_task_list);
 
         struct ares_options options;
         memset(&options, 0, sizeof(options));
-        options.flags = ARES_FLAG_NOCHECKRESP;
         options.sock_state_cb = ares_sockstate_cb;
         options.sock_state_cb_data = this;
+
+        Local<Value> timeout_obj = options_obj->Get(NanNew("timeout"));
+        if (timeout_obj->IsNumber()) {
+          options.timeout = (int)timeout_obj->Int32Value();
+          optmask |= ARES_OPT_TIMEOUTMS;
+        }
+
+        Local<Value> tries_obj = options_obj->Get(NanNew("tries"));
+        if (tries_obj->IsNumber()) {
+          options.tries = (int)tries_obj->Int32Value();
+          optmask |= ARES_OPT_TRIES;
+        }
+
+        Local<Value> ndots_obj = options_obj->Get(NanNew("ndots"));
+        if (ndots_obj->IsNumber()) {
+          options.ndots = (int)ndots_obj->Int32Value();
+          optmask |= ARES_OPT_NDOTS;
+        }
+
+        Local<Value> tcp_port_obj = options_obj->Get(NanNew("tcp_port"));
+        if (tcp_port_obj->IsNumber()) {
+          options.tcp_port = (uint)tcp_port_obj->Uint32Value();
+          optmask |=  ARES_OPT_TCP_PORT;
+        }
+
+        Local<Value> udp_port_obj = options_obj->Get(NanNew("udp_port"));
+        if (udp_port_obj->IsNumber()) {
+          options.udp_port = (uint)udp_port_obj->Uint32Value();
+          optmask |=  ARES_OPT_UDP_PORT;
+        }
+
+        Local<Value> flags_obj = options_obj->Get(NanNew("flags"));
+        if (flags_obj->IsNumber()) {
+          flags = flags | (int)flags_obj->Int32Value();
+        }
+
+        options.flags = flags;
 
         /* We do the call to ares_init_option for caller. */
         r = ares_init_options(&_ares_channel,
                               &options,
-                              ARES_OPT_FLAGS | ARES_OPT_SOCK_STATE_CB);
+                              optmask);
         assert(r == ARES_SUCCESS);
 
         /* Initialize the timeout timer. The timer won't be started until the */
@@ -1535,7 +1573,7 @@ namespace node {
       // normal function.
       NanScope();
       assert(args.IsConstructCall());
-      Resolver *resolver = new Resolver();
+      Resolver *resolver = new Resolver(args[0]->ToObject());
       resolver->Wrap(args.This());
       NanReturnValue(args.This());
     }
@@ -1576,6 +1614,14 @@ namespace node {
       target->Set(NanNew("AF_UNSPEC"), NanNew<Integer>(AF_UNSPEC));
       target->Set(NanNew("AI_ADDRCONFIG"), NanNew<Integer>(AI_ADDRCONFIG));
       target->Set(NanNew("AI_V4MAPPED"), NanNew<Integer>(AI_V4MAPPED));
+
+      target->Set(NanNew("ARES_FLAG_USEVC"), NanNew<Integer>(ARES_FLAG_USEVC));
+      target->Set(NanNew("ARES_FLAG_PRIMARY"), NanNew<Integer>(ARES_FLAG_PRIMARY));
+      target->Set(NanNew("ARES_FLAG_IGNTC"), NanNew<Integer>(ARES_FLAG_IGNTC));
+      target->Set(NanNew("ARES_FLAG_NORECURSE"), NanNew<Integer>(ARES_FLAG_NORECURSE));
+      target->Set(NanNew("ARES_FLAG_STAYOPEN"), NanNew<Integer>(ARES_FLAG_STAYOPEN));
+      target->Set(NanNew("ARES_FLAG_NOSEARCH"), NanNew<Integer>(ARES_FLAG_NOSEARCH));
+      target->Set(NanNew("ARES_FLAG_NOALIASES"), NanNew<Integer>(ARES_FLAG_NOALIASES));
 
       NanAssignPersistent(oncomplete_sym, NanNew("oncomplete"));
 
