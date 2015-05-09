@@ -25,7 +25,69 @@ API docs
 ------
 
 In addition to mapping [APIs](http://nodejs.org/docs/latest/api/dns.html) from node.js dns module, following APIs are available:
-- **cares.query(hostname[, options], callback)** - resolves `hostname` with options and returns all the headers and resource records. `options` must be an object containing two properties, `class` and `type`. Both properties are optional. If class is provided, it must be the integer representing qclass. If class is not provided default value `cares.NS_C_IN` will be considered. If type is provided, it must be the integer representing qtype. If type is not provided default value `cares.NS_T_A` will be considered.
+- **cares.query(hostname[, options], callback)** - resolves `hostname` with options and returns all the headers and resource records.
+	* `hostname`: Hostname to resolve.
+	* `options`: Optional options must be an object containing following properties:
+		- `class`: An integer representing qclass. Possible class constants are `cares.NS_C_*` (default `cares.NS_C_IN`).
+		- `type`: An integer representing qtype. Possible type constants are `cares.NS_T_*` (default `cares.NS_T_A`).
+	* `callback(err, response)`: A callback function will be called with error and response object. In case of an error, err will be an instance of `Error`. In case of success, err will be null and response will contain following fields:
+		- `header`:
+			* `id`: Request id
+			* `qr`: Is a query response
+			* `opcode`: opcode
+			* `aa`: Authoritative Answer
+			* `tc`: Truncation bit
+			* `rd`: Recursion Desired.
+			* `ra`: Recursion Available.
+			* `rcode`: Response Code.
+		- `question`: Array of questions containing following properties.
+			* `name`
+			* `class`
+			* `type`
+		- `authority`: Array of authorities.
+		- `additional`: Array of additional records.
+		- `answer`: Array of answers containing following fields(applicable for `authority` and `additional` as well).
+			* `name`: The name of the resource
+			* `type`: The numerical representation of the resource record type
+			* `class`: The numerical representation of the class of service (usually 1 for internet)
+			* `ttl`: The Time To Live for the record, in seconds
+
+			Depending on the type following fields are available:
+
+			* `cares.NS_T_SOA`
+				- `primary`: string
+				- `admin`: string
+				- `serial`: number
+				- `refresh`: number
+				- `retry`: number
+				- `expiration`: number
+				- `minimum`: number
+			* `cares.NS_T_A` and `cares.NS_T_AAAA`
+				- `address`: string
+			* `cares.NS_T_MX`
+				- `priority`: number
+				- `exchange`: string
+			* `cares.NS_T_TXT`
+				- `data`: array of strings
+			* `cares.NS_T_SRV`
+				- `priority`: number
+				- `weight`: number
+				- `port`: number
+				- `target`: string
+			* `cares.NS_T_NS`
+				- `data`: string
+			* `cares.NS_T_CNAME`
+				- `data`: string
+			* `cares.NS_T_PTR`
+				- `data`: string
+			* `cares.NS_T_NAPTR`
+				- `order`: number
+				- `preference`: number
+				- `flags`: string
+				- `service`: string
+				- `regexp`: string
+				- `replacement`: string
+
 
 An example usage of this API is shown below.
 ```js
