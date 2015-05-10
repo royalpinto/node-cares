@@ -177,13 +177,13 @@ namespace node {
 
         Local<Value> tcp_port_obj = options_obj->Get(NanNew("tcp_port"));
         if (tcp_port_obj->IsNumber()) {
-          options.tcp_port = (uint)tcp_port_obj->Uint32Value();
+          options.tcp_port = (int)tcp_port_obj->Uint32Value();
           optmask |=  ARES_OPT_TCP_PORT;
         }
 
         Local<Value> udp_port_obj = options_obj->Get(NanNew("udp_port"));
         if (udp_port_obj->IsNumber()) {
-          options.udp_port = (uint)udp_port_obj->Uint32Value();
+          options.udp_port = (int)udp_port_obj->Uint32Value();
           optmask |=  ARES_OPT_UDP_PORT;
         }
 
