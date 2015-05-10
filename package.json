@@ -1,0 +1,20 @@
+{
+  "name": "cares",
+  "version": "1.0.0",
+  "description": "node.js interface to c-ares library",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/royalpinto/node-cares.git"
+  },
+  "main": "lib/cares.js",
+  "dependencies": {
+    "nan": "^1.7.0"
+  },
+  "scripts": {
+    "test": "node test.js",
+    "install": "node-gyp rebuild --release"
+  },
+  "author": "Royal Pinto <royalpinto@gmail.com>",
+  "license": "MIT",
+  "gypfile": true
+}
