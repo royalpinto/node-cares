@@ -10,6 +10,13 @@
             "src/cares_wrap.cc"
         ],
         "dependencies": [ "deps/cares/cares.gyp:cares" ],
-        "libraries": [ "-Wl,-rpath,<!(pwd)/build/Release/" ]
+        "conditions": [
+            ["OS!='win'", {
+                  "libraries": [ "-Wl,-rpath,<!(pwd)/build/Release/" ]
+                }, {
+                  "libraries": [ "-Wl,-rpath,<!(echo %cd%)\\build\\Release\\" ]
+                }
+            ]
+        ]
     }]
 }
