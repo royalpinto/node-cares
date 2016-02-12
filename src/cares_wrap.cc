@@ -203,6 +203,7 @@ namespace node {
         /* Initialize the timeout timer. The timer won't be started until the */
         /* first socket is opened. */
 
+        ares_timer.data = this;
         uv_timer_init(uv_default_loop(), &ares_timer);
       }
 
