@@ -113,7 +113,6 @@ namespace node {
       RB_ENTRY(ares_task_t) node;
     };
 
-    static RB_HEAD(ares_task_list, ares_task_t) ares_tasks;
 
 
     static int cmp_ares_tasks(const ares_task_t* a, const ares_task_t* b) {
@@ -123,13 +122,15 @@ namespace node {
     }
 
 
-    RB_GENERATE_STATIC(ares_task_list, ares_task_t, node, cmp_ares_tasks)
 
     static void ares_sockstate_cb(void* data, ares_socket_t sock, int read, int write);
 
     class Resolver: public node::ObjectWrap {
     public:
       static void Initialize(Handle<Object> target);
+
+      RB_HEAD(ares_task_list, ares_task_t) ares_tasks;
+      RB_GENERATE(ares_task_list, ares_task_t, node, cmp_ares_tasks)
 
       inline ares_task_list* cares_task_list() {
         return &_ares_task_list;
@@ -219,7 +220,7 @@ namespace node {
     /* call back into c-ares for possibly processing timeouts. */
     static void ares_timeout(uv_timer_t* handle) {
       Resolver *resolver = (Resolver*)handle->data;
-      assert(!RB_EMPTY(&ares_tasks));
+      assert(!RB_EMPTY(resolver->cares_task_list()));
       ares_process_fd(resolver->_ares_channel, ARES_SOCKET_BAD, ARES_SOCKET_BAD);
     }
 
@@ -282,7 +283,7 @@ namespace node {
 
       ares_task_t lookup_task;
       lookup_task.sock = sock;
-      task = RB_FIND(ares_task_list, &ares_tasks, &lookup_task);
+      task = RB_FIND(resolver->ares_task_list, resolver->cares_task_list(), &lookup_task);
 
       if (read || write) {
         if (!task) {
@@ -291,7 +292,7 @@ namespace node {
           /* If this is the first socket then start the timer. */
           uv_timer_t* timer_handle = resolver->cares_timer_handle();
           if (!uv_is_active((uv_handle_t*) &timer_handle)) {
-            assert(RB_EMPTY(&ares_tasks));
+            assert(RB_EMPTY(resolver->cares_task_list()));
             uv_timer_start(timer_handle, ares_timeout, 1000, 1000);
           }
 
@@ -303,7 +304,7 @@ namespace node {
             return;
           }
 
-          RB_INSERT(ares_task_list, &ares_tasks, task);
+          RB_INSERT(resolver->ares_task_list, resolver->cares_task_list(), task);
         }
 
         /* This should never fail. If it fails anyway, the query will eventually */
@@ -319,10 +320,10 @@ namespace node {
         assert(task &&
                "When an ares socket is closed we should have a handle for it");
 
-        RB_REMOVE(ares_task_list, &ares_tasks, task);
+        RB_REMOVE(resolver->ares_task_list, resolver->cares_task_list(), task);
         uv_close((uv_handle_t*) &task->poll_watcher, ares_poll_close_cb);
 
-        if (RB_EMPTY(&ares_tasks)) {
+        if (RB_EMPTY(resolver->cares_task_list())) {
           uv_timer_stop(resolver->cares_timer_handle());
         }
       }
