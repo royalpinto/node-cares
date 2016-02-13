@@ -167,6 +167,7 @@
 					"/Users/lpinto/.node-gyp/0.12.1/deps/v8/include",
 					node_modules/nan,
 					deps/cares/include,
+					deps/cares/src,
 				);
 				LIBRARY_SEARCH_PATHS = "";
 				MACH_O_TYPE = mh_bundle;
@@ -219,6 +220,7 @@
 					"/Users/lpinto/.node-gyp/0.12.1/deps/v8/include",
 					node_modules/nan,
 					deps/cares/include,
+					deps/cares/src,
 				);
 				LIBRARY_SEARCH_PATHS = "";
 				MACH_O_TYPE = mh_bundle;
