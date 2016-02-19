@@ -11,7 +11,7 @@
     "nan": "^2.2.0"
   },
   "scripts": {
-    "test": "node test.js",
+    "test": "node test/*-test.js",
     "install": "node-gyp rebuild --release"
   },
   "author": "Royal Pinto <royalpinto@gmail.com>",
