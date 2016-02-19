@@ -8,7 +8,7 @@
   },
   "main": "lib/cares.js",
   "dependencies": {
-    "nan": "^1.7.0"
+    "nan": "^2.2.0"
   },
   "scripts": {
     "test": "node test.js",

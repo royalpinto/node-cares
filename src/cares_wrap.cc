@@ -22,7 +22,6 @@
 #define CARES_STATICLIB
 #include "ares.h"
 #include "ares_dns.h"
-#include "node.h"
 #include "nan.h"
 #include "tree.h"
 #include "uv.h"
@@ -77,7 +76,7 @@ int wrap_uv_inet_ntop(int af, const void* src, char* dst, size_t size)
 }
 
 
-namespace node {
+namespace Nan {
 
   namespace cares_wrap {
 
@@ -92,7 +91,7 @@ namespace node {
     using v8::String;
     using v8::Value;
 
-    static Persistent<String> oncomplete_sym;
+    static Nan::Persistent<String> oncomplete_sym;
 
     class Resolver;
 
@@ -125,7 +124,7 @@ namespace node {
 
     static void ares_sockstate_cb(void* data, ares_socket_t sock, int read, int write);
 
-    class Resolver: public node::ObjectWrap {
+    class Resolver: public ObjectWrap {
     public:
       static void Initialize(Handle<Object> target);
 
@@ -158,37 +157,37 @@ namespace node {
         options.sock_state_cb = ares_sockstate_cb;
         options.sock_state_cb_data = this;
 
-        Local<Value> timeout_obj = options_obj->Get(NanNew("timeout"));
+        Local<Value> timeout_obj = options_obj->Get(Nan::New("timeout").ToLocalChecked());
         if (timeout_obj->IsNumber()) {
           options.timeout = (int)timeout_obj->Int32Value();
           optmask |= ARES_OPT_TIMEOUTMS;
         }
 
-        Local<Value> tries_obj = options_obj->Get(NanNew("tries"));
+        Local<Value> tries_obj = options_obj->Get(Nan::New("tries").ToLocalChecked());
         if (tries_obj->IsNumber()) {
           options.tries = (int)tries_obj->Int32Value();
           optmask |= ARES_OPT_TRIES;
         }
 
-        Local<Value> ndots_obj = options_obj->Get(NanNew("ndots"));
+        Local<Value> ndots_obj = options_obj->Get(Nan::New("ndots").ToLocalChecked());
         if (ndots_obj->IsNumber()) {
           options.ndots = (int)ndots_obj->Int32Value();
           optmask |= ARES_OPT_NDOTS;
         }
 
-        Local<Value> tcp_port_obj = options_obj->Get(NanNew("tcp_port"));
+        Local<Value> tcp_port_obj = options_obj->Get(Nan::New("tcp_port").ToLocalChecked());
         if (tcp_port_obj->IsNumber()) {
           options.tcp_port = (int)tcp_port_obj->Uint32Value();
           optmask |=  ARES_OPT_TCP_PORT;
         }
 
-        Local<Value> udp_port_obj = options_obj->Get(NanNew("udp_port"));
+        Local<Value> udp_port_obj = options_obj->Get(Nan::New("udp_port").ToLocalChecked());
         if (udp_port_obj->IsNumber()) {
           options.udp_port = (int)udp_port_obj->Uint32Value();
           optmask |=  ARES_OPT_UDP_PORT;
         }
 
-        Local<Value> flags_obj = options_obj->Get(NanNew("flags"));
+        Local<Value> flags_obj = options_obj->Get(Nan::New("flags").ToLocalChecked());
         if (flags_obj->IsNumber()) {
           flags = flags | (int)flags_obj->Int32Value();
         }
@@ -375,7 +374,7 @@ namespace node {
                                               const unsigned char *abuf,
                                               int alen,
                                               Local<Array> questions) {
-      Local<Object> question = NanNew<Object>();
+      Local<Object> question = Nan::New<Object>();
       char *name;
       int type, dnsclass, status;
       long len;
@@ -404,9 +403,9 @@ namespace node {
        * display RRs.
        */
 
-      question->Set(NanNew("name"), NanNew(name));
-      question->Set(NanNew("type"), NanNew<Integer>(type));
-      question->Set(NanNew("class"), NanNew<Integer>(dnsclass));
+      question->Set(Nan::New("name").ToLocalChecked(), Nan::New(name).ToLocalChecked());
+      question->Set(Nan::New("type").ToLocalChecked(), Nan::New<Integer>(type));
+      question->Set(Nan::New("class").ToLocalChecked(), Nan::New<Integer>(dnsclass));
 
       questions->Set(questions->Length(), question);
 
@@ -420,7 +419,7 @@ namespace node {
                                         const unsigned char *abuf,
                                         int alen,
                                         Local<Array> records) {
-      Local<Object> record = NanNew<Object>();
+      Local<Object> record = Nan::New<Object>();
       const unsigned char *p;
       int type, dnsclass, ttl, dlen, status;
       long len;
@@ -459,10 +458,10 @@ namespace node {
       }
 
       /* Fill the RR name, class, and type. */
-      record->Set(NanNew("name"), NanNew(name.as_char));
-      record->Set(NanNew("class"), NanNew<Integer>(dnsclass));
-      record->Set(NanNew("type"), NanNew<Integer>(type));
-      record->Set(NanNew("ttl"), NanNew<Integer>(ttl));
+      record->Set(Nan::New("name").ToLocalChecked(), Nan::New(name.as_char).ToLocalChecked());
+      record->Set(Nan::New("class").ToLocalChecked(), Nan::New<Integer>(dnsclass));
+      record->Set(Nan::New("type").ToLocalChecked(), Nan::New<Integer>(type));
+      record->Set(Nan::New("ttl").ToLocalChecked(), Nan::New<Integer>(ttl));
       ares_free_string(name.as_char);
 
       /* Display the RR data.  Don't touch aptr. */
@@ -480,14 +479,14 @@ namespace node {
           status = ares_expand_name(aptr, abuf, alen, &name.as_char, &len);
           if (status != ARES_SUCCESS)
             return NULL;
-          record->Set(NanNew("data"), NanNew(name.as_char));
+          record->Set(Nan::New("data").ToLocalChecked(), Nan::New(name.as_char).ToLocalChecked());
           ares_free_string(name.as_char);
           break;
 
         case ns_t_hinfo: //T_HINFO:
         {
           /* The RR data is two length-counted character strings. */
-          Local<Array> strings = NanNew<Array>();
+          Local<Array> strings = Nan::New<Array>();
           p = aptr;
           len = *p;
           if (p + len + 1 > aptr + dlen)
@@ -495,7 +494,7 @@ namespace node {
           status = ares_expand_string(p, abuf, alen, &name.as_uchar, &len);
           if (status != ARES_SUCCESS)
             return NULL;
-          strings->Set(strings->Length(), NanNew(name.as_char));
+          strings->Set(strings->Length(), Nan::New(name.as_char).ToLocalChecked());
           ares_free_string(name.as_char);
           p += len;
           len = *p;
@@ -504,29 +503,29 @@ namespace node {
           status = ares_expand_string(p, abuf, alen, &name.as_uchar, &len);
           if (status != ARES_SUCCESS)
             return NULL;
-          strings->Set(strings->Length(), NanNew(name.as_char));
+          strings->Set(strings->Length(), Nan::New(name.as_char).ToLocalChecked());
           ares_free_string(name.as_char);
-          record->Set(NanNew("data"), strings);
+          record->Set(Nan::New("data").ToLocalChecked(), strings);
           break;
         }
 
         case ns_t_minfo: //T_MINFO:
         {
           /* The RR data is two domain names. */
-          Local<Array> strings = NanNew<Array>();
+          Local<Array> strings = Nan::New<Array>();
           p = aptr;
           status = ares_expand_name(p, abuf, alen, &name.as_char, &len);
           if (status != ARES_SUCCESS)
             return NULL;
-          strings->Set(strings->Length(), NanNew(name.as_char));
+          strings->Set(strings->Length(), Nan::New(name.as_char).ToLocalChecked());
           ares_free_string(name.as_char);
           p += len;
           status = ares_expand_name(p, abuf, alen, &name.as_char, &len);
           if (status != ARES_SUCCESS)
             return NULL;
-          strings->Set(strings->Length(), NanNew(name.as_char));
+          strings->Set(strings->Length(), Nan::New(name.as_char).ToLocalChecked());
           ares_free_string(name.as_char);
-          record->Set(NanNew("data"), strings);
+          record->Set(Nan::New("data").ToLocalChecked(), strings);
           break;
         }
 
@@ -536,13 +535,13 @@ namespace node {
            */
           if (dlen < 2)
             return NULL;
-          record->Set(NanNew("priority"),
-                      NanNew<Integer>((int)DNS__16BIT(aptr)));
+          record->Set(Nan::New("priority").ToLocalChecked(),
+                      Nan::New<Integer>((int)DNS__16BIT(aptr)));
           status = ares_expand_name(aptr + 2, abuf, alen, &name.as_char, &len);
           if (status != ARES_SUCCESS)
             return NULL;
-          record->Set(NanNew("exchange"),
-                      NanNew(name.as_char));
+          record->Set(Nan::New("exchange").ToLocalChecked(),
+                      Nan::New(name.as_char).ToLocalChecked());
           ares_free_string(name.as_char);
           break;
 
@@ -554,31 +553,31 @@ namespace node {
           status = ares_expand_name(p, abuf, alen, &name.as_char, &len);
           if (status != ARES_SUCCESS)
             return NULL;
-          record->Set(NanNew("primary"),
-                      NanNew(name.as_char));
+          record->Set(Nan::New("primary").ToLocalChecked(),
+                      Nan::New(name.as_char).ToLocalChecked());
           ares_free_string(name.as_char);
           p += len;
           status = ares_expand_name(p, abuf, alen, &name.as_char, &len);
           if (status != ARES_SUCCESS)
             return NULL;
 
-          record->Set(NanNew("admin"),
-                      NanNew(name.as_char));
+          record->Set(Nan::New("admin").ToLocalChecked(),
+                      Nan::New(name.as_char).ToLocalChecked());
           ares_free_string(name.as_char);
           p += len;
           if (p + 20 > aptr + dlen)
             return NULL;
 
-          record->Set(NanNew("serial"),
-                      NanNew<Integer>(DNS__32BIT(p)));
-          record->Set(NanNew("refresh"),
-                      NanNew<Integer>(DNS__32BIT(p+4)));
-          record->Set(NanNew("retry"),
-                      NanNew<Integer>(DNS__32BIT(p+8)));
-          record->Set(NanNew("expiration"),
-                      NanNew<Integer>(DNS__32BIT(p+12)));
-          record->Set(NanNew("minimum"),
-                      NanNew<Integer>(DNS__32BIT(p+16)));
+          record->Set(Nan::New("serial").ToLocalChecked(),
+                      Nan::New<Integer>(DNS__32BIT(p)));
+          record->Set(Nan::New("refresh").ToLocalChecked(),
+                      Nan::New<Integer>(DNS__32BIT(p+4)));
+          record->Set(Nan::New("retry").ToLocalChecked(),
+                      Nan::New<Integer>(DNS__32BIT(p+8)));
+          record->Set(Nan::New("expiration").ToLocalChecked(),
+                      Nan::New<Integer>(DNS__32BIT(p+12)));
+          record->Set(Nan::New("minimum").ToLocalChecked(),
+                      Nan::New<Integer>(DNS__32BIT(p+16)));
           break;
 
         case ns_t_txt: //T_TXT:
@@ -586,7 +585,7 @@ namespace node {
           /* The RR data is one or more length-counted character
            * strings. */
           p = aptr;
-          Local<Array> txts = NanNew<Array>();
+          Local<Array> txts = Nan::New<Array>();
           while (p < aptr + dlen)
           {
             len = *p;
@@ -595,11 +594,11 @@ namespace node {
             status = ares_expand_string(p, abuf, alen, &name.as_uchar, &len);
             if (status != ARES_SUCCESS)
               return NULL;
-            txts->Set(txts->Length(), NanNew(name.as_char));
+            txts->Set(txts->Length(), Nan::New(name.as_char).ToLocalChecked());
             ares_free_string(name.as_char);
             p += len;
           }
-          record->Set(NanNew("data"), txts);
+          record->Set(Nan::New("data").ToLocalChecked(), txts);
           break;
         }
 
@@ -608,7 +607,7 @@ namespace node {
           if (dlen != 4)
             return NULL;
           uv_inet_ntop(AF_INET, aptr, addr, sizeof(addr));
-          record->Set(NanNew("address"), NanNew(addr));
+          record->Set(Nan::New("address").ToLocalChecked(), Nan::New(addr).ToLocalChecked());
           break;
 
         case ns_t_aaaa: //T_AAAA:
@@ -616,7 +615,7 @@ namespace node {
           if (dlen != 16)
             return NULL;
           uv_inet_ntop(AF_INET6, aptr, addr, sizeof(addr));
-          record->Set(NanNew("address"), NanNew(addr));
+          record->Set(Nan::New("address").ToLocalChecked(), Nan::New(addr).ToLocalChecked());
           break;
         case ns_t_wks: //T_WKS:
           /* Not implemented yet */
@@ -627,60 +626,60 @@ namespace node {
            * priority, weight, and port, followed by a domain name.
            */
 
-          record->Set(NanNew("priority"),
-                      NanNew<Integer>((int)DNS__16BIT(aptr)));
-          record->Set(NanNew("weight"),
-                      NanNew<Integer>((int)DNS__16BIT(aptr + 2)));
-          record->Set(NanNew("port"),
-                      NanNew<Integer>((int)DNS__16BIT(aptr + 4)));
+          record->Set(Nan::New("priority").ToLocalChecked(),
+                      Nan::New<Integer>((int)DNS__16BIT(aptr)));
+          record->Set(Nan::New("weight").ToLocalChecked(),
+                      Nan::New<Integer>((int)DNS__16BIT(aptr + 2)));
+          record->Set(Nan::New("port").ToLocalChecked(),
+                      Nan::New<Integer>((int)DNS__16BIT(aptr + 4)));
 
 
           status = ares_expand_name(aptr + 6, abuf, alen, &name.as_char, &len);
           if (status != ARES_SUCCESS)
             return NULL;
-          record->Set(NanNew("target"),
-                      NanNew(name.as_char));
+          record->Set(Nan::New("target").ToLocalChecked(),
+                      Nan::New(name.as_char).ToLocalChecked());
           ares_free_string(name.as_char);
           break;
 
         case ns_t_naptr://T_NAPTR:
 
-          record->Set(NanNew("order"),
-                      NanNew<Integer>((int)DNS__16BIT(aptr)));
-          record->Set(NanNew("preference"),
-                      NanNew<Integer>((int)DNS__16BIT(aptr + 2)));
+          record->Set(Nan::New("order").ToLocalChecked(),
+                      Nan::New<Integer>((int)DNS__16BIT(aptr)));
+          record->Set(Nan::New("preference").ToLocalChecked(),
+                      Nan::New<Integer>((int)DNS__16BIT(aptr + 2)));
 
           p = aptr + 4;
           status = ares_expand_string(p, abuf, alen, &name.as_uchar, &len);
           if (status != ARES_SUCCESS)
             return NULL;
 
-          record->Set(NanNew("flags"),
-                      NanNew(name.as_char));
+          record->Set(Nan::New("flags").ToLocalChecked(),
+                      Nan::New(name.as_char).ToLocalChecked());
           ares_free_string(name.as_char);
           p += len;
 
           status = ares_expand_string(p, abuf, alen, &name.as_uchar, &len);
           if (status != ARES_SUCCESS)
             return NULL;
-          record->Set(NanNew("service"),
-                      NanNew(name.as_char));
+          record->Set(Nan::New("service").ToLocalChecked(),
+                      Nan::New(name.as_char).ToLocalChecked());
           ares_free_string(name.as_char);
           p += len;
 
           status = ares_expand_string(p, abuf, alen, &name.as_uchar, &len);
           if (status != ARES_SUCCESS)
             return NULL;
-          record->Set(NanNew("regexp"),
-                      NanNew(name.as_char));
+          record->Set(Nan::New("regexp").ToLocalChecked(),
+                      Nan::New(name.as_char).ToLocalChecked());
           ares_free_string(name.as_char);
           p += len;
 
           status = ares_expand_name(p, abuf, alen, &name.as_char, &len);
           if (status != ARES_SUCCESS)
             return NULL;
-          record->Set(NanNew("replacement"),
-                      NanNew(name.as_char));
+          record->Set(Nan::New("replacement").ToLocalChecked(),
+                      Nan::New(name.as_char).ToLocalChecked());
           ares_free_string(name.as_char);
           break;
 
@@ -703,55 +702,56 @@ namespace node {
 
 
     static Local<Array> HostentToAddresses(struct hostent* host) {
-      Local<Array> addresses = NanNew<Array>();
+      Local<Array> addresses = Nan::New<Array>();
 
       char ip[INET6_ADDRSTRLEN];
       for (int i = 0; host->h_addr_list[i]; ++i) {
         wrap_uv_inet_ntop(host->h_addrtype, host->h_addr_list[i], ip, sizeof(ip));
 
-        Local<String> address = NanNew(ip);
-        addresses->Set(NanNew<Integer>(i), address);
+        Local<String> address = Nan::New(ip).ToLocalChecked();
+        addresses->Set(Nan::New<Integer>(i), address);
       }
 
       return addresses;
     }
 
     static Local<Array> HostentToNames(struct hostent* host) {
-      NanEscapableScope();
-      Local<Array> names = NanNew<Array>();
+      Nan::EscapableHandleScope scope;
+      Local<Array> names = Nan::New<Array>();
 
       for (uint32_t i = 0; host->h_aliases[i] != NULL; ++i) {
-        Local<String> address = NanNew(host->h_aliases[i]);
+        Local<String> address = Nan::New(host->h_aliases[i]).ToLocalChecked();
         names->Set(i, address);
       }
 
-      return NanEscapeScope(names);
+      return scope.Escape(names);
     }
 
 
     class QueryWrap {
     public:
       QueryWrap(ares_channel _ares_channel) {
-        NanScope();
+        Nan::HandleScope scope;
         this->_ares_channel = _ares_channel;
 
-        Local<Object> obj = NanNew<Object>();
-        NanAssignPersistent(object_, obj);
+        Local<Object> obj = Nan::New<Object>();
+        object_.Reset(obj);
       }
 
       virtual ~QueryWrap() {
+        Nan::HandleScope scope;
         assert(!object_.IsEmpty());
 
-        Local<Object> obj = NanNew(object_);
+        Local<Object> obj = Nan::New(object_);
 
-        obj->Delete(NanNew(oncomplete_sym));
+        obj->Delete(Nan::New(oncomplete_sym));
 
-        NanDisposePersistent(object_);
+        object_.Reset();
         obj.Clear();
       }
 
       Handle<Object> GetObject() {
-        return NanNew(object_);
+        return Nan::New(object_);
       }
 
       void SetOptions(Handle<Value> options) {
@@ -759,24 +759,24 @@ namespace node {
 
       void SetOnComplete(Handle<Value> oncomplete) {
         assert(oncomplete->IsFunction());
-        Local<Object> obj = NanNew(object_);
-        obj->Set(NanNew(oncomplete_sym), oncomplete);
+        Local<Object> obj = Nan::New(object_);
+        obj->Set(Nan::New(oncomplete_sym), oncomplete);
       }
 
       void CallOnComplete(Local<Value> answer) {
-        NanScope();
-        Local<Value> argv[2] = { NanNew<Integer>(0), answer };
-        NanMakeCallback(NanNew(object_), NanNew(oncomplete_sym), ARRAY_SIZE(argv), argv);
+        Nan::HandleScope scope;
+        Local<Value> argv[2] = { Nan::New<Integer>(0), answer };
+        Nan::MakeCallback(Nan::New(object_), Nan::New(oncomplete_sym), ARRAY_SIZE(argv), argv);
       }
 
       void CallOnComplete(Local<Value> answer, Local<Value> family) {
-        NanScope();
+        Nan::HandleScope scope;
         Local<Value> argv[] = {
-          NanNew<Integer>(0),
+          Nan::New<Integer>(0),
           answer,
           family
         };
-        NanMakeCallback(NanNew(object_), NanNew(oncomplete_sym), ARRAY_SIZE(argv), argv);
+        Nan::MakeCallback(Nan::New(object_), Nan::New(oncomplete_sym), ARRAY_SIZE(argv), argv);
       }
 
       // Subclasses should implement the appropriate Send method.
@@ -797,13 +797,13 @@ namespace node {
       void ParseError(int status) {
         assert(status != ARES_SUCCESS);
 
-        NanScope();
-        Local<Object> obj = NanNew<Object>();
-        obj->Set(NanNew("status"), NanNew<Integer>(status));
-        obj->Set(NanNew("errorno"), NanNew(AresErrnoString(status)));
-        obj->Set(NanNew("message"), NanNew(ares_strerror(status)));
+        Nan::HandleScope scope;
+        Local<Object> obj = Nan::New<Object>();
+        obj->Set(Nan::New("status").ToLocalChecked(), Nan::New<Integer>(status));
+        obj->Set(Nan::New("errorno").ToLocalChecked(), Nan::New(AresErrnoString(status)).ToLocalChecked());
+        obj->Set(Nan::New("message").ToLocalChecked(), Nan::New(ares_strerror(status)).ToLocalChecked());
         Local<Value> argv[1] = { obj };
-        NanMakeCallback(NanNew(object_), NanNew(oncomplete_sym), ARRAY_SIZE(argv), argv);
+        Nan::MakeCallback(Nan::New(object_), Nan::New(oncomplete_sym), ARRAY_SIZE(argv), argv);
       }
 
     protected:
@@ -813,7 +813,7 @@ namespace node {
       }
 
     private:
-      Persistent<Object> object_;
+      Nan::Persistent<Object> object_;
     };
 
 
@@ -829,14 +829,14 @@ namespace node {
       void SetOptions(Handle<Value> options) {
         if (options->IsObject()) {
           Local<Object> options_obj = options->ToObject();
-          Local<Value> classobj = options_obj->Get(NanNew("class"));
+          Local<Value> classobj = options_obj->Get(Nan::New("class").ToLocalChecked());
           if (classobj->IsNumber()) {
             dnsclass = (int)classobj->Int32Value();
           } else {
             dnsclass = ns_c_in;
           }
 
-          Local<Value> typeobj = options_obj->Get(NanNew("type"));
+          Local<Value> typeobj = options_obj->Get(Nan::New("type").ToLocalChecked());
           if (typeobj->IsNumber()) {
             type = (int)typeobj->Int32Value();
           } else {
@@ -845,27 +845,27 @@ namespace node {
         }
       }
 
-      int Send(const char* name) {
+      int Send(const char* name) override {
         ares_query(this->_ares_channel, name, dnsclass, type, GenericQueryCallback, GetQueryArg());
         return 0;
       }
 
     protected:
-      void Parse(unsigned char* buf, int len) {
-        NanScope();
+      void Parse(unsigned char* buf, int len) override {
+        Nan::HandleScope scope;
 
-        Local<Object> response = NanNew<Object>();
+        Local<Object> response = Nan::New<Object>();
 
-        Local<Object> header = NanNew<Object>();
-        header->Set(NanNew("id"), NanNew<Integer>(DNS_HEADER_QID(buf)));
-        header->Set(NanNew("qr"), NanNew<Integer>(DNS_HEADER_QR(buf)));
-        header->Set(NanNew("opcode"), NanNew<Integer>(DNS_HEADER_OPCODE(buf)));
-        header->Set(NanNew("aa"), NanNew<Integer>(DNS_HEADER_AA(buf)));
-        header->Set(NanNew("tc"), NanNew<Integer>(DNS_HEADER_TC(buf)));
-        header->Set(NanNew("rd"), NanNew<Integer>(DNS_HEADER_RD(buf)));
-        header->Set(NanNew("ra"), NanNew<Integer>(DNS_HEADER_RA(buf)));
-        header->Set(NanNew("rcode"), NanNew<Integer>(DNS_HEADER_RCODE(buf)));
-        response->Set(NanNew("header"), header);
+        Local<Object> header = Nan::New<Object>();
+        header->Set(Nan::New("id").ToLocalChecked(), Nan::New<Integer>(DNS_HEADER_QID(buf)));
+        header->Set(Nan::New("qr").ToLocalChecked(), Nan::New<Integer>(DNS_HEADER_QR(buf)));
+        header->Set(Nan::New("opcode").ToLocalChecked(), Nan::New<Integer>(DNS_HEADER_OPCODE(buf)));
+        header->Set(Nan::New("aa").ToLocalChecked(), Nan::New<Integer>(DNS_HEADER_AA(buf)));
+        header->Set(Nan::New("tc").ToLocalChecked(), Nan::New<Integer>(DNS_HEADER_TC(buf)));
+        header->Set(Nan::New("rd").ToLocalChecked(), Nan::New<Integer>(DNS_HEADER_RD(buf)));
+        header->Set(Nan::New("ra").ToLocalChecked(), Nan::New<Integer>(DNS_HEADER_RA(buf)));
+        header->Set(Nan::New("rcode").ToLocalChecked(), Nan::New<Integer>(DNS_HEADER_RCODE(buf)));
+        response->Set(Nan::New("header").ToLocalChecked(), header);
 
         unsigned int qdcount, ancount, nscount, arcount, i;
         const unsigned char *aptr;
@@ -876,8 +876,8 @@ namespace node {
         arcount = DNS_HEADER_ARCOUNT(buf);
 
         /* Parse the questions. */
-        Local<Array> questions = NanNew<Array>();
-        response->Set(NanNew("question"), questions);
+        Local<Array> questions = Nan::New<Array>();
+        response->Set(Nan::New("question").ToLocalChecked(), questions);
         aptr = buf + NS_HFIXEDSZ;
         for (i = 0; i < qdcount; i++)
         {
@@ -888,8 +888,8 @@ namespace node {
         }
 
         /* Parse the answers. */
-        Local<Array> answers = NanNew<Array>();
-        response->Set(NanNew("answer"), answers);
+        Local<Array> answers = Nan::New<Array>();
+        response->Set(Nan::New("answer").ToLocalChecked(), answers);
         for (i = 0; i < ancount; i++)
         {
           aptr = fill_rr(aptr, buf, len, answers);
@@ -899,8 +899,8 @@ namespace node {
         }
 
         /* Parse the NS records. */
-        Local<Array> authorities = NanNew<Array>();
-        response->Set(NanNew("authority"), authorities);
+        Local<Array> authorities = Nan::New<Array>();
+        response->Set(Nan::New("authority").ToLocalChecked(), authorities);
         for (i = 0; i < nscount; i++)
         {
           aptr = fill_rr(aptr, buf, len, authorities);
@@ -910,8 +910,8 @@ namespace node {
         }
 
         /* Parse the additional records. */
-        Local<Array> additionals = NanNew<Array>();
-        response->Set(NanNew("additional"), additionals);
+        Local<Array> additionals = Nan::New<Array>();
+        response->Set(Nan::New("additional").ToLocalChecked(), additionals);
         for (i = 0; i < arcount; i++)
         {
           aptr = fill_rr(aptr, buf, len, additionals);
@@ -930,13 +930,13 @@ namespace node {
       QueryAWrap(ares_channel _ares_channel): QueryWrap(_ares_channel) {
       }
 
-      int Send(const char* name) {
+      int Send(const char* name) override {
         ares_query(this->_ares_channel, name, ns_c_in, ns_t_a, Callback, GetQueryArg());
         return 0;
       }
 
-      void Parse(unsigned char* buf, int len) {
-        NanScope();
+      void Parse(unsigned char* buf, int len) override {
+        Nan::HandleScope scope;
 
         struct hostent* host;
 
@@ -959,7 +959,7 @@ namespace node {
       QueryAaaaWrap(ares_channel _ares_channel): QueryWrap(_ares_channel) {
       }
 
-      int Send(const char* name) {
+      int Send(const char* name) override {
         ares_query(this->_ares_channel,
                    name,
                    ns_c_in,
@@ -970,8 +970,8 @@ namespace node {
       }
 
     protected:
-      void Parse(unsigned char* buf, int len) {
-        NanScope();
+      void Parse(unsigned char* buf, int len) override {
+        Nan::HandleScope scope;
 
         struct hostent* host;
 
@@ -994,7 +994,7 @@ namespace node {
       QueryCnameWrap(ares_channel _ares_channel): QueryWrap(_ares_channel) {
       }
 
-      int Send(const char* name) {
+      int Send(const char* name) override {
         ares_query(this->_ares_channel,
                    name,
                    ns_c_in,
@@ -1005,8 +1005,8 @@ namespace node {
       }
 
     protected:
-      void Parse(unsigned char* buf, int len) {
-        NanScope();
+      void Parse(unsigned char* buf, int len) override {
+        Nan::HandleScope scope;
         struct hostent* host;
 
         int status = ares_parse_a_reply(buf, len, &host, NULL, NULL);
@@ -1017,8 +1017,8 @@ namespace node {
 
         // A cname lookup always returns a single record but we follow the
         // common API here.
-        Local<Array> result = NanNew<Array>(1);
-        result->Set(0, NanNew(host->h_name));
+        Local<Array> result = Nan::New<Array>(1);
+        result->Set(0, Nan::New(host->h_name).ToLocalChecked());
         ares_free_hostent(host);
 
         this->CallOnComplete(result);
@@ -1031,7 +1031,7 @@ namespace node {
       QueryMxWrap(ares_channel _ares_channel): QueryWrap(_ares_channel) {
       }
 
-      int Send(const char* name) {
+      int Send(const char* name) override {
         ares_query(this->_ares_channel,
                    name,
                    ns_c_in,
@@ -1042,8 +1042,8 @@ namespace node {
       }
 
     protected:
-      void Parse(unsigned char* buf, int len) {
-        NanScope();
+      void Parse(unsigned char* buf, int len) override {
+        Nan::HandleScope scope;
 
         struct ares_mx_reply* mx_start;
         int status = ares_parse_mx_reply(buf, len, &mx_start);
@@ -1052,17 +1052,17 @@ namespace node {
           return;
         }
 
-        Local<Array> mx_records = NanNew<Array>();
-        Local<String> exchange_symbol = NanNew("exchange");
-        Local<String> priority_symbol = NanNew("priority");
+        Local<Array> mx_records = Nan::New<Array>();
+        Local<String> exchange_symbol = Nan::New("exchange").ToLocalChecked();
+        Local<String> priority_symbol = Nan::New("priority").ToLocalChecked();
 
         ares_mx_reply* current = mx_start;
         for (uint32_t i = 0; current != NULL; ++i, current = current->next) {
-          Local<Object> mx_record = NanNew<Object>();
+          Local<Object> mx_record = Nan::New<Object>();
           mx_record->Set(exchange_symbol,
-                         NanNew(current->host));
+                         Nan::New(current->host).ToLocalChecked());
           mx_record->Set(priority_symbol,
-                         NanNew<Integer>(current->priority));
+                         Nan::New<Integer>(current->priority));
           mx_records->Set(i, mx_record);
         }
 
@@ -1078,7 +1078,7 @@ namespace node {
       QueryNsWrap(ares_channel _ares_channel): QueryWrap(_ares_channel) {
       }
 
-      int Send(const char* name) {
+      int Send(const char* name) override {
         ares_query(this->_ares_channel,
                    name,
                    ns_c_in,
@@ -1089,8 +1089,8 @@ namespace node {
       }
 
     protected:
-      void Parse(unsigned char* buf, int len) {
-        NanScope();
+      void Parse(unsigned char* buf, int len) override {
+        Nan::HandleScope scope;
         struct hostent* host;
 
         int status = ares_parse_ns_reply(buf, len, &host);
@@ -1112,7 +1112,7 @@ namespace node {
       QueryTxtWrap(ares_channel _ares_channel): QueryWrap(_ares_channel) {
       }
 
-      int Send(const char* name) {
+      int Send(const char* name) override {
         ares_query(this->_ares_channel,
                    name,
                    ns_c_in,
@@ -1123,8 +1123,8 @@ namespace node {
       }
 
     protected:
-      void Parse(unsigned char* buf, int len) {
-        NanScope();
+      void Parse(unsigned char* buf, int len) override {
+        Nan::HandleScope scope;
         struct ares_txt_reply* txt_out;
 
         int status = ares_parse_txt_reply(buf, len, &txt_out);
@@ -1133,18 +1133,18 @@ namespace node {
           return;
         }
 
-        Local<Array> txt_records = NanNew<Array>();
+        Local<Array> txt_records = Nan::New<Array>();
         Local<Array> txt_chunk;
 
         ares_txt_reply* current = txt_out;
         uint32_t i = 0;
         for (uint32_t j = 0; current != NULL; current = current->next) {
-          Local<String> txt = NanNew(current->txt);
+          Local<String> txt = Nan::New(current->txt).As<String>();
           // New record found - write out the current chunk
           if (current->record_start) {
             if (!txt_chunk.IsEmpty())
               txt_records->Set(i++, txt_chunk);
-            txt_chunk = NanNew<Array>();
+            txt_chunk = Nan::New<Array>();
             j = 0;
           }
           txt_chunk->Set(j++, txt);
@@ -1164,7 +1164,7 @@ namespace node {
       explicit QuerySrvWrap(ares_channel _ares_channel): QueryWrap(_ares_channel) {
       }
 
-      int Send(const char* name) {
+      int Send(const char* name) override {
         ares_query(this->_ares_channel,
                    name,
                    ns_c_in,
@@ -1175,8 +1175,8 @@ namespace node {
       }
 
     protected:
-      void Parse(unsigned char* buf, int len) {
-        NanScope();
+      void Parse(unsigned char* buf, int len) override {
+        Nan::HandleScope scope;
 
         struct ares_srv_reply* srv_start;
         int status = ares_parse_srv_reply(buf, len, &srv_start);
@@ -1185,23 +1185,23 @@ namespace node {
           return;
         }
 
-        Local<Array> srv_records = NanNew<Array>();
-        Local<String> name_symbol = NanNew("name");
-        Local<String> port_symbol = NanNew("port");
-        Local<String> priority_symbol = NanNew("priority");
-        Local<String> weight_symbol = NanNew("weight");
+        Local<Array> srv_records = Nan::New<Array>();
+        Local<String> name_symbol = Nan::New("name").ToLocalChecked();
+        Local<String> port_symbol = Nan::New("port").ToLocalChecked();
+        Local<String> priority_symbol = Nan::New("priority").ToLocalChecked();
+        Local<String> weight_symbol = Nan::New("weight").ToLocalChecked();
 
         ares_srv_reply* current = srv_start;
         for (uint32_t i = 0; current != NULL; ++i, current = current->next) {
-          Local<Object> srv_record = NanNew<Object>();
+          Local<Object> srv_record = Nan::New<Object>();
           srv_record->Set(name_symbol,
-                          NanNew(current->host));
+                          Nan::New(current->host).ToLocalChecked());
           srv_record->Set(port_symbol,
-                          NanNew<Integer>(current->port));
+                          Nan::New<Integer>(current->port));
           srv_record->Set(priority_symbol,
-                          NanNew<Integer>(current->priority));
+                          Nan::New<Integer>(current->priority));
           srv_record->Set(weight_symbol,
-                          NanNew<Integer>(current->weight));
+                          Nan::New<Integer>(current->weight));
           srv_records->Set(i, srv_record);
         }
 
@@ -1217,7 +1217,7 @@ namespace node {
       explicit QueryNaptrWrap(ares_channel _ares_channel): QueryWrap(_ares_channel) {
       }
 
-      int Send(const char* name) {
+      int Send(const char* name) override {
         ares_query(this->_ares_channel,
                    name,
                    ns_c_in,
@@ -1228,8 +1228,8 @@ namespace node {
       }
 
     protected:
-      void Parse(unsigned char* buf, int len) {
-        NanScope();
+      void Parse(unsigned char* buf, int len) override {
+        Nan::HandleScope scope;
 
         ares_naptr_reply* naptr_start;
         int status = ares_parse_naptr_reply(buf, len, &naptr_start);
@@ -1239,29 +1239,29 @@ namespace node {
           return;
         }
 
-        Local<Array> naptr_records = NanNew<Array>();
-        Local<String> flags_symbol = NanNew("flags");
-        Local<String> service_symbol = NanNew("service");
-        Local<String> regexp_symbol = NanNew("regexp");
-        Local<String> replacement_symbol = NanNew("replacement");
-        Local<String> order_symbol = NanNew("order");
-        Local<String> preference_symbol = NanNew("preference");
+        Local<Array> naptr_records = Nan::New<Array>();
+        Local<String> flags_symbol = Nan::New("flags").ToLocalChecked();
+        Local<String> service_symbol = Nan::New("service").ToLocalChecked();
+        Local<String> regexp_symbol = Nan::New("regexp").ToLocalChecked();
+        Local<String> replacement_symbol = Nan::New("replacement").ToLocalChecked();
+        Local<String> order_symbol = Nan::New("order").ToLocalChecked();
+        Local<String> preference_symbol = Nan::New("preference").ToLocalChecked();
 
         ares_naptr_reply* current = naptr_start;
         for (uint32_t i = 0; current != NULL; ++i, current = current->next) {
-          Local<Object> naptr_record = NanNew<Object>();
+          Local<Object> naptr_record = Nan::New<Object>();
           naptr_record->Set(flags_symbol,
-                            NanNew(current->flags));
+                            Nan::New(current->flags));
           naptr_record->Set(service_symbol,
-                            NanNew(current->service));
+                            Nan::New(current->service));
           naptr_record->Set(regexp_symbol,
-                            NanNew(current->regexp));
+                            Nan::New(current->regexp));
           naptr_record->Set(replacement_symbol,
-                            NanNew(current->replacement));
+                            Nan::New(current->replacement).ToLocalChecked());
           naptr_record->Set(order_symbol,
-                            NanNew<Integer>(current->order));
+                            Nan::New<Integer>(current->order));
           naptr_record->Set(preference_symbol,
-                            NanNew<Integer>(current->preference));
+                            Nan::New<Integer>(current->preference));
           naptr_records->Set(i, naptr_record);
         }
 
@@ -1277,7 +1277,7 @@ namespace node {
       QuerySoaWrap(ares_channel _ares_channel): QueryWrap(_ares_channel) {
       }
 
-      int Send(const char* name) {
+      int Send(const char* name) override {
         ares_query(this->_ares_channel,
                    name,
                    ns_c_in,
@@ -1288,8 +1288,8 @@ namespace node {
       }
 
     protected:
-      void Parse(unsigned char* buf, int len) {
-        NanScope();
+      void Parse(unsigned char* buf, int len) override {
+        Nan::HandleScope scope;
 
         ares_soa_reply* soa_out;
         int status = ares_parse_soa_reply(buf, len, &soa_out);
@@ -1299,22 +1299,22 @@ namespace node {
           return;
         }
 
-        Local<Object> soa_record = NanNew<Object>();
+        Local<Object> soa_record = Nan::New<Object>();
 
-        soa_record->Set(NanNew("nsname"),
-                        NanNew(soa_out->nsname));
-        soa_record->Set(NanNew("hostmaster"),
-                        NanNew(soa_out->hostmaster));
-        soa_record->Set(NanNew("serial"),
-                        NanNew<Integer>(soa_out->serial));
-        soa_record->Set(NanNew("refresh"),
-                        NanNew<Integer>(soa_out->refresh));
-        soa_record->Set(NanNew("retry"),
-                        NanNew<Integer>(soa_out->retry));
-        soa_record->Set(NanNew("expire"),
-                        NanNew<Integer>(soa_out->expire));
-        soa_record->Set(NanNew("minttl"),
-                        NanNew<Integer>(soa_out->minttl));
+        soa_record->Set(Nan::New("nsname").ToLocalChecked(),
+                        Nan::New(soa_out->nsname).ToLocalChecked());
+        soa_record->Set(Nan::New("hostmaster").ToLocalChecked(),
+                        Nan::New(soa_out->hostmaster).ToLocalChecked());
+        soa_record->Set(Nan::New("serial").ToLocalChecked(),
+                        Nan::New<Integer>(soa_out->serial));
+        soa_record->Set(Nan::New("refresh").ToLocalChecked(),
+                        Nan::New<Integer>(soa_out->refresh));
+        soa_record->Set(Nan::New("retry").ToLocalChecked(),
+                        Nan::New<Integer>(soa_out->retry));
+        soa_record->Set(Nan::New("expire").ToLocalChecked(),
+                        Nan::New<Integer>(soa_out->expire));
+        soa_record->Set(Nan::New("minttl").ToLocalChecked(),
+                        Nan::New<Integer>(soa_out->minttl));
 
         ares_free_data(soa_out);
 
@@ -1328,7 +1328,7 @@ namespace node {
       explicit GetHostByAddrWrap(ares_channel _ares_channel): QueryWrap(_ares_channel) {
       }
 
-      int Send(const char* name) {
+      int Send(const char* name) override {
         int length, family;
         char address_buffer[sizeof(struct in6_addr)];
 
@@ -1352,8 +1352,8 @@ namespace node {
       }
 
     protected:
-      void Parse(struct hostent* host) {
-        NanScope();
+      void Parse(struct hostent* host) override {
+        Nan::HandleScope scope;
         this->CallOnComplete(HostentToNames(host));
       }
     };
@@ -1367,11 +1367,11 @@ namespace node {
 
       void SetOptions(Handle<Value> options) {
         if (options->IsObject()) {
-          family = options->ToObject()->Get(NanNew("family"))->Int32Value();
+          family = options->ToObject()->Get(Nan::New("family").ToLocalChecked())->Int32Value();
         }
       }
 
-      int Send(const char* name) {
+      int Send(const char* name) override {
         ares_gethostbyname(this->_ares_channel,
                            name,
                            family,
@@ -1381,11 +1381,11 @@ namespace node {
       }
 
     protected:
-      void Parse(struct hostent* host) {
-        NanScope();
+      void Parse(struct hostent* host) override {
+        Nan::HandleScope scope;
 
         Local<Array> addresses = HostentToAddresses(host);
-        Local<Integer> family = NanNew<Integer>(host->h_addrtype);
+        Local<Integer> family = Nan::New<Integer>(host->h_addrtype);
 
         this->CallOnComplete(addresses, family);
       }
@@ -1435,44 +1435,42 @@ namespace node {
 
     template <class Wrap>
     NAN_METHOD(Query) {
-      NanScope();
 
-      Resolver* resolver = ObjectWrap::Unwrap<Resolver>(args.Holder());
+      Resolver* resolver = ObjectWrap::Unwrap<Resolver>(info.Holder());
 
-      assert(!args.IsConstructCall());
-      assert(args[0]->IsString());
-      assert(args[2]->IsFunction());
+      assert(!info.IsConstructCall());
+      assert(info[0]->IsString());
+      assert(info[2]->IsFunction());
 
       //Local<Object> req_wrap_obj = args[0].As<Object>();
       Wrap* wrap = new Wrap(resolver->_ares_channel);
-      wrap->SetOptions(args[1]);
-      wrap->SetOnComplete(args[2]);
+      wrap->SetOptions(info[1]);
+      wrap->SetOnComplete(info[2]);
 
       // We must cache the wrap's js object here, because cares might make the
       // callback from the wrap->Send stack. This will destroy the wrap's internal
       // object reference, causing wrap->GetObject() to return undefined.
       //TODO: Local<Object> object = NanNew(wrap->GetObject());
 
-      String::Utf8Value name(args[0]);
+      String::Utf8Value name(info[0]);
 
       int r = wrap->Send(*name);
       if (r) {
         delete wrap;
       }
 
-      NanReturnValue(NanNew<Integer>(r));
+      info.GetReturnValue().Set(Nan::New<Integer>(r));
 
     }
 
 
     NAN_METHOD(GetServers) {
-      NanScope();
 
-      Local<Array> server_array = NanNew<Array>();
+      Local<Array> server_array = Nan::New<Array>();
 
       ares_addr_node* servers;
 
-      Resolver* resolver = ObjectWrap::Unwrap<Resolver>(args.Holder());
+      Resolver* resolver = ObjectWrap::Unwrap<Resolver>(info.Holder());
 
       int r = ares_get_servers(resolver->_ares_channel, &servers);
       assert(r == ARES_SUCCESS);
@@ -1486,30 +1484,29 @@ namespace node {
         int err = wrap_uv_inet_ntop(cur->family, caddr, ip, sizeof(ip));
         assert(err == 0);
 
-        Local<String> addr = NanNew(ip);
+        Local<String> addr = Nan::New(ip).ToLocalChecked();
         server_array->Set(i, addr);
       }
 
       ares_free_data(servers);
 
-      NanReturnValue(server_array);
+      info.GetReturnValue().Set(server_array);
     }
 
 
     NAN_METHOD(SetServers) {
-      NanScope();
 
-      assert(args[0]->IsArray());
+      assert(info[0]->IsArray());
 
-      Local<Array> arr = Local<Array>::Cast(args[0]);
+      Local<Array> arr = Local<Array>::Cast(info[0]);
 
       uint32_t len = arr->Length();
 
-      Resolver* resolver = ObjectWrap::Unwrap<Resolver>(args.Holder());
+      Resolver* resolver = ObjectWrap::Unwrap<Resolver>(info.Holder());
 
       if (len == 0) {
         int rv = ares_set_servers(resolver->_ares_channel, NULL);
-        NanReturnValue(NanNew<Integer>(rv));
+        info.GetReturnValue().Set(Nan::New<Integer>(rv));
       }
 
       ares_addr_node* servers = new ares_addr_node[len];
@@ -1526,7 +1523,7 @@ namespace node {
         assert(elm->Get(1)->IsString());
 
         int fam = elm->Get(0)->Int32Value();
-        NanUtf8String ip(elm->Get(1));
+        Nan::Utf8String ip(elm->Get(1));
 
         ares_addr_node* cur = &servers[i];
 
@@ -1563,13 +1560,13 @@ namespace node {
       delete[] servers;
 
       if (err == ARES_SUCCESS) {
-        NanReturnNull();
+        info.GetReturnValue().SetNull();
       } else {
-        Local<Object> obj = NanNew<Object>();
-        obj->Set(NanNew("status"), NanNew<Integer>(err));
-        obj->Set(NanNew("errorno"), NanNew(AresErrnoString(err)));
-        obj->Set(NanNew("message"), NanNew(ares_strerror(err)));
-        NanReturnValue(obj);
+        Local<Object> obj = Nan::New<Object>();
+        obj->Set(Nan::New("status").ToLocalChecked(), Nan::New<Integer>(err));
+        obj->Set(Nan::New("errorno").ToLocalChecked(), Nan::New(AresErrnoString(err)).ToLocalChecked());
+        obj->Set(Nan::New("message").ToLocalChecked(), Nan::New(ares_strerror(err)).ToLocalChecked());
+        info.GetReturnValue().Set(obj);
       }
     }
 
@@ -1578,36 +1575,36 @@ namespace node {
       // This constructor should not be exposed to public javascript.
       // Therefore we assert that we are not trying to call this as a
       // normal function.
-      NanScope();
-      assert(args.IsConstructCall());
-      Resolver *resolver = new Resolver(args[0]->ToObject());
-      resolver->Wrap(args.This());
-      NanReturnValue(args.This());
+      Nan::HandleScope scope;
+      assert(info.IsConstructCall());
+      Resolver *resolver = new Resolver(info[0]->ToObject());
+      resolver->Wrap(info.This());
+      info.GetReturnValue().Set(info.This());
     }
 
 
     void Resolver::Initialize(Handle<Object> target) {
-      Local<FunctionTemplate> constructor = NanNew<FunctionTemplate>(New);
+      Local<FunctionTemplate> constructor = Nan::New<FunctionTemplate>(New);
       constructor->InstanceTemplate()->SetInternalFieldCount(1);
-      constructor->SetClassName(NanNew("Resolver"));
+      constructor->SetClassName(Nan::New("Resolver").ToLocalChecked());
 
-      NODE_SET_PROTOTYPE_METHOD(constructor, "queryGeneric", Query<QueryGenericWrap>);
-      NODE_SET_PROTOTYPE_METHOD(constructor, "queryA", Query<QueryAWrap>);
-      NODE_SET_PROTOTYPE_METHOD(constructor, "queryAaaa", Query<QueryAaaaWrap>);
-      NODE_SET_PROTOTYPE_METHOD(constructor, "queryCname", Query<QueryCnameWrap>);
-      NODE_SET_PROTOTYPE_METHOD(constructor, "queryMx", Query<QueryMxWrap>);
-      NODE_SET_PROTOTYPE_METHOD(constructor, "queryNs", Query<QueryNsWrap>);
-      NODE_SET_PROTOTYPE_METHOD(constructor, "queryTxt", Query<QueryTxtWrap>);
-      NODE_SET_PROTOTYPE_METHOD(constructor, "querySrv", Query<QuerySrvWrap>);
-      NODE_SET_PROTOTYPE_METHOD(constructor, "queryNaptr", Query<QueryNaptrWrap>);
-      NODE_SET_PROTOTYPE_METHOD(constructor, "querySoa", Query<QuerySoaWrap>);
-      NODE_SET_PROTOTYPE_METHOD(constructor, "getHostByAddr", Query<GetHostByAddrWrap>);
-      NODE_SET_PROTOTYPE_METHOD(constructor, "getHostByName", Query<GetHostByNameWrap>);
+      Nan::SetPrototypeMethod(constructor, "queryGeneric", Query<QueryGenericWrap>);
+      Nan::SetPrototypeMethod(constructor, "queryA", Query<QueryAWrap>);
+      Nan::SetPrototypeMethod(constructor, "queryAaaa", Query<QueryAaaaWrap>);
+      Nan::SetPrototypeMethod(constructor, "queryCname", Query<QueryCnameWrap>);
+      Nan::SetPrototypeMethod(constructor, "queryMx", Query<QueryMxWrap>);
+      Nan::SetPrototypeMethod(constructor, "queryNs", Query<QueryNsWrap>);
+      Nan::SetPrototypeMethod(constructor, "queryTxt", Query<QueryTxtWrap>);
+      Nan::SetPrototypeMethod(constructor, "querySrv", Query<QuerySrvWrap>);
+      Nan::SetPrototypeMethod(constructor, "queryNaptr", Query<QueryNaptrWrap>);
+      Nan::SetPrototypeMethod(constructor, "querySoa", Query<QuerySoaWrap>);
+      Nan::SetPrototypeMethod(constructor, "getHostByAddr", Query<GetHostByAddrWrap>);
+      Nan::SetPrototypeMethod(constructor, "getHostByName", Query<GetHostByNameWrap>);
 
-      NODE_SET_PROTOTYPE_METHOD(constructor, "getServers", GetServers);
-      NODE_SET_PROTOTYPE_METHOD(constructor, "setServers", SetServers);
+      Nan::SetPrototypeMethod(constructor, "getServers", GetServers);
+      Nan::SetPrototypeMethod(constructor, "setServers", SetServers);
 
-      target->Set(NanNew("Resolver"), constructor->GetFunction());
+      target->Set(Nan::New("Resolver").ToLocalChecked(), constructor->GetFunction());
     };
 
 
@@ -1616,21 +1613,21 @@ namespace node {
       int r = ares_library_init(ARES_LIB_INIT_ALL);
       assert(r == ARES_SUCCESS);
 
-      target->Set(NanNew("AF_INET"), NanNew<Integer>(AF_INET));
-      target->Set(NanNew("AF_INET6"), NanNew<Integer>(AF_INET6));
-      target->Set(NanNew("AF_UNSPEC"), NanNew<Integer>(AF_UNSPEC));
-      target->Set(NanNew("AI_ADDRCONFIG"), NanNew<Integer>(AI_ADDRCONFIG));
-      target->Set(NanNew("AI_V4MAPPED"), NanNew<Integer>(AI_V4MAPPED));
+      target->Set(Nan::New("AF_INET").ToLocalChecked(), Nan::New<Integer>(AF_INET));
+      target->Set(Nan::New("AF_INET6").ToLocalChecked(), Nan::New<Integer>(AF_INET6));
+      target->Set(Nan::New("AF_UNSPEC").ToLocalChecked(), Nan::New<Integer>(AF_UNSPEC));
+      target->Set(Nan::New("AI_ADDRCONFIG").ToLocalChecked(), Nan::New<Integer>(AI_ADDRCONFIG));
+      target->Set(Nan::New("AI_V4MAPPED").ToLocalChecked(), Nan::New<Integer>(AI_V4MAPPED));
 
-      target->Set(NanNew("ARES_FLAG_USEVC"), NanNew<Integer>(ARES_FLAG_USEVC));
-      target->Set(NanNew("ARES_FLAG_PRIMARY"), NanNew<Integer>(ARES_FLAG_PRIMARY));
-      target->Set(NanNew("ARES_FLAG_IGNTC"), NanNew<Integer>(ARES_FLAG_IGNTC));
-      target->Set(NanNew("ARES_FLAG_NORECURSE"), NanNew<Integer>(ARES_FLAG_NORECURSE));
-      target->Set(NanNew("ARES_FLAG_STAYOPEN"), NanNew<Integer>(ARES_FLAG_STAYOPEN));
-      target->Set(NanNew("ARES_FLAG_NOSEARCH"), NanNew<Integer>(ARES_FLAG_NOSEARCH));
-      target->Set(NanNew("ARES_FLAG_NOALIASES"), NanNew<Integer>(ARES_FLAG_NOALIASES));
+      target->Set(Nan::New("ARES_FLAG_USEVC").ToLocalChecked(), Nan::New<Integer>(ARES_FLAG_USEVC));
+      target->Set(Nan::New("ARES_FLAG_PRIMARY").ToLocalChecked(), Nan::New<Integer>(ARES_FLAG_PRIMARY));
+      target->Set(Nan::New("ARES_FLAG_IGNTC").ToLocalChecked(), Nan::New<Integer>(ARES_FLAG_IGNTC));
+      target->Set(Nan::New("ARES_FLAG_NORECURSE").ToLocalChecked(), Nan::New<Integer>(ARES_FLAG_NORECURSE));
+      target->Set(Nan::New("ARES_FLAG_STAYOPEN").ToLocalChecked(), Nan::New<Integer>(ARES_FLAG_STAYOPEN));
+      target->Set(Nan::New("ARES_FLAG_NOSEARCH").ToLocalChecked(), Nan::New<Integer>(ARES_FLAG_NOSEARCH));
+      target->Set(Nan::New("ARES_FLAG_NOALIASES").ToLocalChecked(), Nan::New<Integer>(ARES_FLAG_NOALIASES));
 
-      NanAssignPersistent(oncomplete_sym, NanNew("oncomplete"));
+      oncomplete_sym.Reset(Nan::New("oncomplete").ToLocalChecked());
 
       Resolver::Initialize(target);
 
@@ -1641,4 +1638,4 @@ namespace node {
 }
 
 
-NODE_MODULE(cares_wrap, node::cares_wrap::Initialize)
+NODE_MODULE(cares_wrap, Nan::cares_wrap::Initialize)
