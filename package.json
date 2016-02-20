@@ -10,6 +10,9 @@
   "dependencies": {
     "nan": "^2.2.0"
   },
+  "devDependencies": {
+    "nodeunit": "^0.9.1"
+  },
   "scripts": {
     "test": "node test.js",
     "install": "node-gyp rebuild --release"
