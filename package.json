@@ -14,7 +14,7 @@
     "nodeunit": "^0.9.1"
   },
   "scripts": {
-    "test": "node test.js",
+    "test": "nodeunit test",
     "install": "node-gyp rebuild --release"
   },
   "author": "Royal Pinto <royalpinto@gmail.com>",
