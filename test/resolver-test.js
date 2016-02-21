@@ -27,4 +27,19 @@ module.exports = {
             test.done();
         });
     },
+
+    resolve4: function (test) {
+        this.resolver.resolve4('www.google.com', function (err, response) {
+            test.strictEqual(err, null, err);
+            test.notStrictEqual(response, null, err);
+            test.ok(response instanceof Array, "Invalid response returned.");
+            test.ok(response.length > 0, "Invalid response returned.");
+            response.forEach(function (ip) {
+                test.ok(net.isIP(ip), "Invalid IP address.");
+                test.ok(net.isIPv4(ip), "Invalid IP address.");
+            });
+            test.done();
+        });
+    },
+
 };
