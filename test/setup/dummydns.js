@@ -1,28 +1,38 @@
 var dns = require('native-dns');
 var dnsentries = require('./dnsentries.js');
 
-var server = dns.createServer();
+var server = dns.createUDPServer();
 
 server.on('request', function (request, response) {
 
-  var question = request.question[0];
-  var class_data = dnsentries[question.class];
-  var rrtype_data = class_data[question.type];
+    var question = request.question[0];
 
-  rrtype_data[question.name]['answer'].forEach(function (entry) {
-	response.answer.push(entry);
-  });
+    var class_data = dnsentries[question.class];
+    var rrtype_data = class_data[question.type];
 
-  response.additional.push(dns.A({
-    name: 'hostA.example.org',
-    address: '127.0.0.3',
-    ttl: 600,
-  }));
-  response.send();
+    (function () {
+        var answer = rrtype_data[question.name]['answer'];
+        if (answer) {
+            answer.forEach(function (entry) {
+            response.answer.push(entry);
+            });
+        }
+    })();
+
+    (function () {
+        var additional = rrtype_data[question.name]['additional'];
+        if (additional) {
+            additional.forEach(function (entry) {
+                response.additional.push(entry);
+            });
+        }
+    })();
+
+    response.send();
 });
 
 server.on('error', function (err, buff, req, res) {
-  console.error(err.stack);
+    console.error(err.stack);
 });
 
 server.serve(8080);
