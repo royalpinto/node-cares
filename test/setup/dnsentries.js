@@ -29,7 +29,7 @@ module.exports = {
 				}],
 			},
 		},
-		88: { //RR Type: AAAA
+		28: { //RR Type: AAAA
 			'ipv6.something.com': {
 				answer: [{
 					name: 'ipv6.something.com.',
