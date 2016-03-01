@@ -1,3 +1,7 @@
+/*
+The follwoing code adapted from node's dns module and license is as follows
+*/
+
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
