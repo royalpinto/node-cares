@@ -22,12 +22,16 @@
 var cares = require('../lib/cares.js');
 var net = require('net');
 
+var SERVERS = ['127.0.0.1'];
+var PORT = 8080;
+
 
 module.exports = {
 
     setUp: function (callback) {
         this.resolver = new cares.Resolver({
-            servers: ['8.8.8.8'],
+            servers: SERVERS,
+            udp_port: PORT,
         });
         callback();
     },
