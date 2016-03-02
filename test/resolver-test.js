@@ -40,7 +40,7 @@ module.exports = {
     },
 
     resolve: function (test) {
-        this.resolver.resolve('www.google.com', function (err, response) {
+        this.resolver.resolve('www.something.com', function (err, response) {
             test.ifError(err);
             test.notStrictEqual(response, null, err);
             test.ok(response instanceof Array, "Invalid response returned.");
@@ -54,7 +54,7 @@ module.exports = {
     },
 
     resolve4: function (test) {
-        this.resolver.resolve4('www.google.com', function (err, response) {
+        this.resolver.resolve4('www.something.com', function (err, response) {
             test.ifError(err);
             test.notStrictEqual(response, null, err);
             test.ok(response instanceof Array, "Invalid response returned.");
@@ -68,7 +68,7 @@ module.exports = {
     },
 
     resolve6: function (test) {
-        this.resolver.resolve6('ipv6.google.com', function (err, response) {
+        this.resolver.resolve6('ipv6.something.com', function (err, response) {
             test.ifError(err);
             test.notStrictEqual(response, null, err);
             test.ok(response instanceof Array, "Invalid response returned.");
