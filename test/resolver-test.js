@@ -81,22 +81,4 @@ module.exports = {
         });
     },
 
-    lookup: function (test) {
-        this.resolver.lookup('www.google.com', function (err, ip, family) {
-            test.ifError(err);
-            test.notStrictEqual(ip, null, err);
-            test.ok(net.isIP(ip), "Invalid IP address.");
-            if (family === 4) {
-                test.strictEqual(family, 4);
-                test.ok(net.isIPv4(ip), "Invalid IP address.");
-            } else if (family === 6) {
-                test.strictEqual(family, 6);
-                test.ok(net.isIPv6(ip), "Invalid IP address.");
-            } else {
-                test.ok(false, "Invalid family found.");
-            }
-            test.done();
-        });
-    },
-
 };
