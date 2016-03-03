@@ -296,12 +296,12 @@ namespace Nan {
           uv_timer_t* timer_handle = resolver->cares_timer_handle();
           if (!uv_is_active((uv_handle_t*) &timer_handle)) {
             assert(RB_EMPTY(resolver->cares_task_list()));
-            uv_timer_start(timer_handle, ares_timeout, 1000, 1000);
+            uv_timer_start(timer_handle, ares_timeout, 100, 100);
           } else {
             //For some reason, sometimes execution comes to this block and gets hung.
             //TODO: Remove this dirty fix of calling uv_timer_start to handle this scenario.
             assert(RB_EMPTY(resolver->cares_task_list()));
-            uv_timer_start(timer_handle, ares_timeout, 1000, 1000);
+            uv_timer_start(timer_handle, ares_timeout, 100, 100);
           }
 
           task = ares_task_create(resolver, sock);
