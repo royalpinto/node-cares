@@ -115,7 +115,7 @@ module.exports = {
     },
 
     resolve6: function (test) {
-        this.resolver.resolve6('ipv6.something.com', function (err, response) {
+        this.resolver.resolve6('www.something.com', function (err, response) {
             test.ifError(err);
             test.notStrictEqual(response, null, err);
             test.ok(response instanceof Array, "Invalid response returned.");

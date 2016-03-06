@@ -30,7 +30,7 @@ module.exports = {
 			},
 		},
 		28: { //RR Type: AAAA
-			'ipv6.something.com': {
+			'www.something.com': {
 				answer: [{
 					name: 'ipv6.something.com.',
 					data: 'cname1.ipv6.something.com.',
