@@ -124,6 +124,29 @@ module.exports = {
                 test.ok(net.isIP(ip), "Invalid IP address.");
                 test.ok(net.isIPv6(ip), "Invalid IP address.");
             });
+
+            var expected = (dnsentries[1][28]['www.something.com']['answer'])
+            .filter( function (answer) {
+                return answer['type'] === 28;
+            })
+            .map( function (answer) {
+                return answer['address'];
+            });
+
+            test.strictEqual(
+                expected.length,
+                response.length,
+                "Number of records expected and recived are not same."
+            );
+
+            response.forEach(function (answer, index) {
+                test.strictEqual(
+                    answer,
+                    expected[index],
+                    "Expected and recieved record is not same."
+                );
+            });
+
             test.done();
         });
     },
