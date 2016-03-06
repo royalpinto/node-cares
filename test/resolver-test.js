@@ -87,6 +87,29 @@ module.exports = {
                 test.ok(net.isIP(ip), "Invalid IP address.");
                 test.ok(net.isIPv4(ip), "Invalid IP address.");
             });
+
+            var expected = (dnsentries[1][1]['www.something.com']['answer'])
+            .filter( function (answer) {
+                return answer['type'] === 1;
+            })
+            .map( function (answer) {
+                return answer['address'];
+            });
+
+            test.strictEqual(
+                expected.length,
+                response.length,
+                "Number of records expected and recived are not same."
+            );
+
+            response.forEach(function (answer, index) {
+                test.strictEqual(
+                    answer,
+                    expected[index],
+                    "Expected and recieved record is not same."
+                );
+            });
+
             test.done();
         });
     },
