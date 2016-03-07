@@ -51,9 +51,14 @@ module.exports = {
                 test.ok(net.isIPv4(ip), "Invalid IP address.");
             });
 
-            var expected = (dnsentries[1][1]['www.something.com']['answer'])
+            var expected = (
+                dnsentries[cares.NS_C_IN]
+                [cares.NS_T_A]
+                ['www.something.com']
+                ['answer']
+            )
             .filter( function (answer) {
-                return answer['type'] === 1;
+                return answer['type'] === cares.NS_T_A;
             })
             .map( function (answer) {
                 return answer['address'];
@@ -88,9 +93,14 @@ module.exports = {
                 test.ok(net.isIPv4(ip), "Invalid IP address.");
             });
 
-            var expected = (dnsentries[1][1]['www.something.com']['answer'])
+            var expected = (
+                dnsentries[cares.NS_C_IN]
+                [cares.NS_T_A]
+                ['www.something.com']
+                ['answer']
+            )
             .filter( function (answer) {
-                return answer['type'] === 1;
+                return answer['type'] === cares.NS_T_A;
             })
             .map( function (answer) {
                 return answer['address'];
@@ -125,9 +135,14 @@ module.exports = {
                 test.ok(net.isIPv6(ip), "Invalid IP address.");
             });
 
-            var expected = (dnsentries[1][28]['www.something.com']['answer'])
+            var expected = (
+                dnsentries[cares.NS_C_IN]
+                [cares.NS_T_AAAA]
+                ['www.something.com']
+                ['answer']
+            )
             .filter( function (answer) {
-                return answer['type'] === 28;
+                return answer['type'] === cares.NS_T_AAAA;
             })
             .map( function (answer) {
                 return answer['address'];
