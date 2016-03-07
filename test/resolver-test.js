@@ -250,4 +250,45 @@ module.exports = {
         });
     },
 
+    resolveCname: function (test) {
+        this.resolver.resolveCname('www.something.com', function (err, response) {
+            test.ifError(err);
+            test.notStrictEqual(response, null, err);
+            test.ok(response instanceof Array, "Invalid response returned.");
+            test.ok(response.length > 0, "Invalid response returned.");
+            response.forEach(function (data) {
+                test.notStrictEqual(data, null, "Invalid CNAME");
+            });
+
+            var expected = (
+                dnsentries[cares.NS_C_IN]
+                [cares.NS_T_CNAME]
+                ['www.something.com']
+                ['answer']
+            )
+            .filter( function (answer) {
+                return answer['type'] === cares.NS_T_CNAME;
+            })
+            .map( function (answer) {
+                return answer['data'];
+            });
+
+            test.strictEqual(
+                expected.length,
+                response.length,
+                "Number of records expected and recived are not same."
+            );
+
+            response.forEach(function (answer, index) {
+                test.strictEqual(
+                    answer,
+                    expected[index],
+                    "Expected and recieved record is not same."
+                );
+            });
+
+            test.done();
+        });
+    },
+
 };
