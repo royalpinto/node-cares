@@ -22,12 +22,17 @@
 var cares = require('../lib/cares.js');
 var net = require('net');
 
+var SERVERS = ['127.0.0.1'];
+var PORT = 49160;
+var dnsentries = require('./setup/dnsentries.js');
+
 
 module.exports = {
 
     setUp: function (callback) {
         this.resolver = new cares.Resolver({
-            servers: ['8.8.8.8'],
+            servers: SERVERS,
+            udp_port: PORT,
         });
         callback();
     },
@@ -36,7 +41,7 @@ module.exports = {
     },
 
     resolve: function (test) {
-        this.resolver.resolve('www.google.com', function (err, response) {
+        this.resolver.resolve('www.something.com', function (err, response) {
             test.ifError(err);
             test.notStrictEqual(response, null, err);
             test.ok(response instanceof Array, "Invalid response returned.");
@@ -45,12 +50,124 @@ module.exports = {
                 test.ok(net.isIP(ip), "Invalid IP address.");
                 test.ok(net.isIPv4(ip), "Invalid IP address.");
             });
+
+            var expected = (
+                dnsentries[cares.NS_C_IN]
+                [cares.NS_T_A]
+                ['www.something.com']
+                ['answer']
+            )
+            .filter( function (answer) {
+                return answer['type'] === cares.NS_T_A;
+            })
+            .map( function (answer) {
+                return answer['address'];
+            });
+
+            test.strictEqual(
+                expected.length,
+                response.length,
+                "Number of records expected and recived are not same."
+            );
+
+            response.forEach(function (answer, index) {
+                test.strictEqual(
+                    answer,
+                    expected[index],
+                    "Expected and recieved record is not same."
+                );
+            });
+
+            test.done();
+        });
+    },
+
+    resolve_explicit_A: function (test) {
+        this.resolver.resolve('www.something.com', 'A', function (err, response) {
+            test.ifError(err);
+            test.notStrictEqual(response, null, err);
+            test.ok(response instanceof Array, "Invalid response returned.");
+            test.ok(response.length > 0, "Invalid response returned.");
+            response.forEach(function (ip) {
+                test.ok(net.isIP(ip), "Invalid IP address.");
+                test.ok(net.isIPv4(ip), "Invalid IP address.");
+            });
+
+            var expected = (
+                dnsentries[cares.NS_C_IN]
+                [cares.NS_T_A]
+                ['www.something.com']
+                ['answer']
+            )
+            .filter( function (answer) {
+                return answer['type'] === cares.NS_T_A;
+            })
+            .map( function (answer) {
+                return answer['address'];
+            });
+
+            test.strictEqual(
+                expected.length,
+                response.length,
+                "Number of records expected and recived are not same."
+            );
+
+            response.forEach(function (answer, index) {
+                test.strictEqual(
+                    answer,
+                    expected[index],
+                    "Expected and recieved record is not same."
+                );
+            });
+
+            test.done();
+        });
+    },
+
+    resolve_explicit_AAAA: function (test) {
+        this.resolver.resolve('www.something.com', 'AAAA', function (err, response) {
+            test.ifError(err);
+            test.notStrictEqual(response, null, err);
+            test.ok(response instanceof Array, "Invalid response returned.");
+            test.ok(response.length > 0, "Invalid response returned.");
+            response.forEach(function (ip) {
+                test.ok(net.isIP(ip), "Invalid IP address.");
+                test.ok(net.isIPv6(ip), "Invalid IP address.");
+            });
+
+            var expected = (
+                dnsentries[cares.NS_C_IN]
+                [cares.NS_T_AAAA]
+                ['www.something.com']
+                ['answer']
+            )
+            .filter( function (answer) {
+                return answer['type'] === cares.NS_T_AAAA;
+            })
+            .map( function (answer) {
+                return answer['address'];
+            });
+
+            test.strictEqual(
+                expected.length,
+                response.length,
+                "Number of records expected and recived are not same."
+            );
+
+            response.forEach(function (answer, index) {
+                test.strictEqual(
+                    answer,
+                    expected[index],
+                    "Expected and recieved record is not same."
+                );
+            });
+
             test.done();
         });
     },
 
     resolve4: function (test) {
-        this.resolver.resolve4('www.google.com', function (err, response) {
+        this.resolver.resolve4('www.something.com', function (err, response) {
             test.ifError(err);
             test.notStrictEqual(response, null, err);
             test.ok(response instanceof Array, "Invalid response returned.");
@@ -59,12 +176,40 @@ module.exports = {
                 test.ok(net.isIP(ip), "Invalid IP address.");
                 test.ok(net.isIPv4(ip), "Invalid IP address.");
             });
+
+            var expected = (
+                dnsentries[cares.NS_C_IN]
+                [cares.NS_T_A]
+                ['www.something.com']
+                ['answer']
+            )
+            .filter( function (answer) {
+                return answer['type'] === cares.NS_T_A;
+            })
+            .map( function (answer) {
+                return answer['address'];
+            });
+
+            test.strictEqual(
+                expected.length,
+                response.length,
+                "Number of records expected and recived are not same."
+            );
+
+            response.forEach(function (answer, index) {
+                test.strictEqual(
+                    answer,
+                    expected[index],
+                    "Expected and recieved record is not same."
+                );
+            });
+
             test.done();
         });
     },
 
     resolve6: function (test) {
-        this.resolver.resolve6('ipv6.google.com', function (err, response) {
+        this.resolver.resolve6('www.something.com', function (err, response) {
             test.ifError(err);
             test.notStrictEqual(response, null, err);
             test.ok(response instanceof Array, "Invalid response returned.");
@@ -73,24 +218,75 @@ module.exports = {
                 test.ok(net.isIP(ip), "Invalid IP address.");
                 test.ok(net.isIPv6(ip), "Invalid IP address.");
             });
+
+            var expected = (
+                dnsentries[cares.NS_C_IN]
+                [cares.NS_T_AAAA]
+                ['www.something.com']
+                ['answer']
+            )
+            .filter( function (answer) {
+                return answer['type'] === cares.NS_T_AAAA;
+            })
+            .map( function (answer) {
+                return answer['address'];
+            });
+
+            test.strictEqual(
+                expected.length,
+                response.length,
+                "Number of records expected and recived are not same."
+            );
+
+            response.forEach(function (answer, index) {
+                test.strictEqual(
+                    answer,
+                    expected[index],
+                    "Expected and recieved record is not same."
+                );
+            });
+
             test.done();
         });
     },
 
-    lookup: function (test) {
-        this.resolver.lookup('www.google.com', function (err, ip, family) {
+    resolveCname: function (test) {
+        this.resolver.resolveCname('www.something.com', function (err, response) {
             test.ifError(err);
-            test.notStrictEqual(ip, null, err);
-            test.ok(net.isIP(ip), "Invalid IP address.");
-            if (family === 4) {
-                test.strictEqual(family, 4);
-                test.ok(net.isIPv4(ip), "Invalid IP address.");
-            } else if (family === 6) {
-                test.strictEqual(family, 6);
-                test.ok(net.isIPv6(ip), "Invalid IP address.");
-            } else {
-                test.ok(false, "Invalid family found.");
-            }
+            test.notStrictEqual(response, null, err);
+            test.ok(response instanceof Array, "Invalid response returned.");
+            test.ok(response.length > 0, "Invalid response returned.");
+            response.forEach(function (data) {
+                test.notStrictEqual(data, null, "Invalid CNAME");
+            });
+
+            var expected = (
+                dnsentries[cares.NS_C_IN]
+                [cares.NS_T_CNAME]
+                ['www.something.com']
+                ['answer']
+            )
+            .filter( function (answer) {
+                return answer['type'] === cares.NS_T_CNAME;
+            })
+            .map( function (answer) {
+                return answer['data'];
+            });
+
+            test.strictEqual(
+                expected.length,
+                response.length,
+                "Number of records expected and recived are not same."
+            );
+
+            response.forEach(function (answer, index) {
+                test.strictEqual(
+                    answer,
+                    expected[index],
+                    "Expected and recieved record is not same."
+                );
+            });
+
             test.done();
         });
     },
