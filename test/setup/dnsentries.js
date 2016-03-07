@@ -61,8 +61,8 @@ module.exports = {
 		5: { // RR Type: CNAME
 			'www.something.com': {
 				answer: [{
-					name: 'www.something.com.',
-					data: 'cname1.something.com.',
+					name: 'www.something.com',
+					data: 'cname1.something.com',
 					ttl: 600,
 					type: 5,
 					class: 1,
