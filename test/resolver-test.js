@@ -124,6 +124,48 @@ module.exports = {
         });
     },
 
+    resolve_explicit_AAAA: function (test) {
+        this.resolver.resolve('www.something.com', 'AAAA', function (err, response) {
+            test.ifError(err);
+            test.notStrictEqual(response, null, err);
+            test.ok(response instanceof Array, "Invalid response returned.");
+            test.ok(response.length > 0, "Invalid response returned.");
+            response.forEach(function (ip) {
+                test.ok(net.isIP(ip), "Invalid IP address.");
+                test.ok(net.isIPv6(ip), "Invalid IP address.");
+            });
+
+            var expected = (
+                dnsentries[cares.NS_C_IN]
+                [cares.NS_T_AAAA]
+                ['www.something.com']
+                ['answer']
+            )
+            .filter( function (answer) {
+                return answer['type'] === cares.NS_T_AAAA;
+            })
+            .map( function (answer) {
+                return answer['address'];
+            });
+
+            test.strictEqual(
+                expected.length,
+                response.length,
+                "Number of records expected and recived are not same."
+            );
+
+            response.forEach(function (answer, index) {
+                test.strictEqual(
+                    answer,
+                    expected[index],
+                    "Expected and recieved record is not same."
+                );
+            });
+
+            test.done();
+        });
+    },
+
     resolve4: function (test) {
         this.resolver.resolve4('www.something.com', function (err, response) {
             test.ifError(err);
