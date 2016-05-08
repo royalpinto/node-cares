@@ -8,7 +8,8 @@
   },
   "main": "lib/cares.js",
   "dependencies": {
-    "nan": "^2.2.0"
+    "nan": "^2.2.0",
+    "q": "^1.4.1"
   },
   "devDependencies": {
     "nodeunit": "^0.9.1"
