@@ -24,6 +24,10 @@ var net = require('net');
 var SERVERS = ['127.0.0.1'];
 var PORT = 49160;
 
+var SERVERS = ['127.0.0.1'];
+var PORT = 49160;
+var dnsentries = require('./setup/dnsentries.js');
+
 
 module.exports = {
 
@@ -48,6 +52,118 @@ module.exports = {
                 test.ok(net.isIP(ip), "Invalid IP address.");
                 test.ok(net.isIPv4(ip), "Invalid IP address.");
             });
+
+            var expected = (
+                dnsentries[cares.NS_C_IN]
+                [cares.NS_T_A]
+                ['www.something.com']
+                ['answer']
+            )
+            .filter( function (answer) {
+                return answer['type'] === cares.NS_T_A;
+            })
+            .map( function (answer) {
+                return answer['address'];
+            });
+
+            test.strictEqual(
+                expected.length,
+                response.length,
+                "Number of records expected and recived are not same."
+            );
+
+            response.forEach(function (answer, index) {
+                test.strictEqual(
+                    answer,
+                    expected[index],
+                    "Expected and recieved record is not same."
+                );
+            });
+
+            test.done();
+        });
+    },
+
+    resolve_explicit_A: function (test) {
+        this.resolver.resolve('www.something.com', 'A', function (err, response) {
+            test.ifError(err);
+            test.notStrictEqual(response, null, err);
+            test.ok(response instanceof Array, "Invalid response returned.");
+            test.ok(response.length > 0, "Invalid response returned.");
+            response.forEach(function (ip) {
+                test.ok(net.isIP(ip), "Invalid IP address.");
+                test.ok(net.isIPv4(ip), "Invalid IP address.");
+            });
+
+            var expected = (
+                dnsentries[cares.NS_C_IN]
+                [cares.NS_T_A]
+                ['www.something.com']
+                ['answer']
+            )
+            .filter( function (answer) {
+                return answer['type'] === cares.NS_T_A;
+            })
+            .map( function (answer) {
+                return answer['address'];
+            });
+
+            test.strictEqual(
+                expected.length,
+                response.length,
+                "Number of records expected and recived are not same."
+            );
+
+            response.forEach(function (answer, index) {
+                test.strictEqual(
+                    answer,
+                    expected[index],
+                    "Expected and recieved record is not same."
+                );
+            });
+
+            test.done();
+        });
+    },
+
+    resolve_explicit_AAAA: function (test) {
+        this.resolver.resolve('www.something.com', 'AAAA', function (err, response) {
+            test.ifError(err);
+            test.notStrictEqual(response, null, err);
+            test.ok(response instanceof Array, "Invalid response returned.");
+            test.ok(response.length > 0, "Invalid response returned.");
+            response.forEach(function (ip) {
+                test.ok(net.isIP(ip), "Invalid IP address.");
+                test.ok(net.isIPv6(ip), "Invalid IP address.");
+            });
+
+            var expected = (
+                dnsentries[cares.NS_C_IN]
+                [cares.NS_T_AAAA]
+                ['www.something.com']
+                ['answer']
+            )
+            .filter( function (answer) {
+                return answer['type'] === cares.NS_T_AAAA;
+            })
+            .map( function (answer) {
+                return answer['address'];
+            });
+
+            test.strictEqual(
+                expected.length,
+                response.length,
+                "Number of records expected and recived are not same."
+            );
+
+            response.forEach(function (answer, index) {
+                test.strictEqual(
+                    answer,
+                    expected[index],
+                    "Expected and recieved record is not same."
+                );
+            });
+
             test.done();
         });
     },
@@ -62,12 +178,40 @@ module.exports = {
                 test.ok(net.isIP(ip), "Invalid IP address.");
                 test.ok(net.isIPv4(ip), "Invalid IP address.");
             });
+
+            var expected = (
+                dnsentries[cares.NS_C_IN]
+                [cares.NS_T_A]
+                ['www.something.com']
+                ['answer']
+            )
+            .filter( function (answer) {
+                return answer['type'] === cares.NS_T_A;
+            })
+            .map( function (answer) {
+                return answer['address'];
+            });
+
+            test.strictEqual(
+                expected.length,
+                response.length,
+                "Number of records expected and recived are not same."
+            );
+
+            response.forEach(function (answer, index) {
+                test.strictEqual(
+                    answer,
+                    expected[index],
+                    "Expected and recieved record is not same."
+                );
+            });
+
             test.done();
         });
     },
 
     resolve6: function (test) {
-        this.resolver.resolve6('ipv6.something.com', function (err, response) {
+        this.resolver.resolve6('www.something.com', function (err, response) {
             test.ifError(err);
             test.notStrictEqual(response, null, err);
             test.ok(response instanceof Array, "Invalid response returned.");
@@ -76,6 +220,75 @@ module.exports = {
                 test.ok(net.isIP(ip), "Invalid IP address.");
                 test.ok(net.isIPv6(ip), "Invalid IP address.");
             });
+
+            var expected = (
+                dnsentries[cares.NS_C_IN]
+                [cares.NS_T_AAAA]
+                ['www.something.com']
+                ['answer']
+            )
+            .filter( function (answer) {
+                return answer['type'] === cares.NS_T_AAAA;
+            })
+            .map( function (answer) {
+                return answer['address'];
+            });
+
+            test.strictEqual(
+                expected.length,
+                response.length,
+                "Number of records expected and recived are not same."
+            );
+
+            response.forEach(function (answer, index) {
+                test.strictEqual(
+                    answer,
+                    expected[index],
+                    "Expected and recieved record is not same."
+                );
+            });
+
+            test.done();
+        });
+    },
+
+    resolveCname: function (test) {
+        this.resolver.resolveCname('www.something.com', function (err, response) {
+            test.ifError(err);
+            test.notStrictEqual(response, null, err);
+            test.ok(response instanceof Array, "Invalid response returned.");
+            test.ok(response.length > 0, "Invalid response returned.");
+            response.forEach(function (data) {
+                test.notStrictEqual(data, null, "Invalid CNAME");
+            });
+
+            var expected = (
+                dnsentries[cares.NS_C_IN]
+                [cares.NS_T_CNAME]
+                ['www.something.com']
+                ['answer']
+            )
+            .filter( function (answer) {
+                return answer['type'] === cares.NS_T_CNAME;
+            })
+            .map( function (answer) {
+                return answer['data'];
+            });
+
+            test.strictEqual(
+                expected.length,
+                response.length,
+                "Number of records expected and recived are not same."
+            );
+
+            response.forEach(function (answer, index) {
+                test.strictEqual(
+                    answer,
+                    expected[index],
+                    "Expected and recieved record is not same."
+                );
+            });
+
             test.done();
         });
     },

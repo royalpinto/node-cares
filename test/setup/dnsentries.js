@@ -30,21 +30,21 @@ module.exports = {
 			},
 		},
 		28: { //RR Type: AAAA
-			'ipv6.something.com': {
+			'www.something.com': {
 				answer: [{
-					name: 'ipv6.something.com.',
+					name: 'www.something.com.',
 					data: 'cname1.ipv6.something.com.',
 					ttl: 600,
 					type: 5,
 					class: 1,
 				}, {
-					name: 'ipv6.something.com.',
+					name: 'cname1.ipv6.something.com.',
 					data: 'cname2.ipv6.something.com.',
 					ttl: 600,
 					type: 5,
 					class: 1,
 				}, {
-					name: 'cname1.ipv6.something.com.',
+					name: 'cname2.ipv6.something.com.',
 					address: '2404:6800:4007:807::200e',
 					ttl: 600,
 					type: 28,
@@ -61,8 +61,8 @@ module.exports = {
 		5: { // RR Type: CNAME
 			'www.something.com': {
 				answer: [{
-					name: 'www.something.com.',
-					data: 'cname1.something.com.',
+					name: 'www.something.com',
+					data: 'cname1.something.com',
 					ttl: 600,
 					type: 5,
 					class: 1,
