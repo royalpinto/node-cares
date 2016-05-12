@@ -32,7 +32,9 @@ module.exports = {
     setUp: function(callback) {
         this.resolver = new cares.Resolver({
             servers: SERVERS,
+            /* eslint-disable camelcase */
             udp_port: PORT,
+            /* eslint-enable */
         });
         callback();
     },
@@ -80,7 +82,7 @@ module.exports = {
         });
     },
 
-    resolve_explicit_A: function(test) {
+    resolveExplicitA: function(test) {
         this.resolver.resolve('www.something.com', 'A', function(err,
             response) {
             test.ifError(err);
@@ -121,7 +123,7 @@ module.exports = {
         });
     },
 
-    resolve_explicit_AAAA: function(test) {
+    resolveExplicitAAAA: function(test) {
         this.resolver.resolve('www.something.com', 'AAAA', function(err,
             response) {
             test.ifError(err);
