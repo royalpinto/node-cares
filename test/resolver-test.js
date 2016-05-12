@@ -284,4 +284,41 @@ module.exports = {
         });
     },
 
+    query: function(test) {
+        this.resolver.query('www.something.com', function(err, response) {
+            test.ifError(err);
+            test.notStrictEqual(response, null, err);
+
+            test.ok(response.header instanceof Object,
+                "Invalid header returned.");
+
+            test.ok(response.question instanceof Array,
+                "Invalid question returned.");
+            test.ok(response.question.length === 1,
+                "Invalid number of questions returned.");
+            var question = response.question[0];
+            test.ok(question.class === 1,
+                "Invalid class in the question returned.");
+            test.ok(question.type === 1,
+                "Invalid type in the question returned.");
+
+            test.ok(response.authority instanceof Array,
+                "Invalid authority returned.");
+            test.ok(response.authority.length === 0,
+                "No authorites expected.");
+
+            test.ok(response.additional instanceof Array,
+                "Invalid additional returned.");
+            test.ok(response.additional.length === 0,
+                "No additionals expected.");
+
+            test.ok(response.answer instanceof Array,
+                "Invalid answer returned.");
+            test.ok(response.answer.length > 0,
+                "No answers returned.");
+
+            test.done();
+        });
+    },
+
 };
