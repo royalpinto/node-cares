@@ -12,13 +12,40 @@
     "q": "^1.4.1"
   },
   "devDependencies": {
+    "eslint": "^2.9.0",
+    "eslint-config-google": "^0.5.0",
+    "native-dns": "^0.7.0",
     "nodeunit": "^0.9.1"
   },
   "scripts": {
     "test": "nodeunit test",
-    "install": "node-gyp rebuild --release"
+    "install": "node-gyp rebuild --release",
+    "lint": "eslint ."
   },
   "author": "Royal Pinto <royalpinto@gmail.com>",
   "license": "MIT",
-  "gypfile": true
+  "gypfile": true,
+  "eslintConfig": {
+    "extends": "google",
+    "rules": {
+      "comma-dangle": [
+        2,
+        "always-multiline"
+      ],
+      "no-multiple-empty-lines": [
+        2,
+        {
+          "max": 2,
+          "maxEOF": 1
+        }
+      ],
+      "indent": [
+        2,
+        4,
+        {
+          "SwitchCase": 1
+        }
+      ]
+    }
+  }
 }
