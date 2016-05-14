@@ -21,7 +21,8 @@
   "scripts": {
     "test": "nodeunit test",
     "install": "node-gyp rebuild --release",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "docs": "jsdoc2md lib/*.js > API.md"
   },
   "author": "Royal Pinto <royalpinto@gmail.com>",
   "license": "MIT",
