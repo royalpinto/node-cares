@@ -212,6 +212,7 @@ namespace Nan {
       }
 
       ~Resolver() {
+        ares_destroy(this->_ares_channel);
       }
 
       ares_task_list _ares_task_list;
