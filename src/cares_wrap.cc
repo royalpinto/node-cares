@@ -1514,7 +1514,7 @@ namespace Nan {
       ares_addr_node* servers = new ares_addr_node[len];
       ares_addr_node* last = NULL;
 
-      int err;
+      int err = 0;
 
       for (uint32_t i = 0; i < len; i++) {
         assert(arr->Get(i)->IsArray());
