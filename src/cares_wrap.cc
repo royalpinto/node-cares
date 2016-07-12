@@ -222,17 +222,14 @@ namespace Nan {
 
     /* This is called once per second by loop->timer. It is used to constantly */
     /* call back into c-ares for possibly processing timeouts. */
+#if NODE_MODULE_VERSION < NODE_0_12_MODULE_VERSION
+    static void ares_timeout(uv_timer_t* handle, int status) {
+#else
     static void ares_timeout(uv_timer_t* handle) {
+#endif
       Resolver *resolver = (Resolver*)handle->data;
       assert(!RB_EMPTY(resolver->cares_task_list()));
       ares_process_fd(resolver->_ares_channel, ARES_SOCKET_BAD, ARES_SOCKET_BAD);
-    }
-
-    /* This is called once per second by loop->timer. It is used to constantly */
-    /* call back into c-ares for possibly processing timeouts. */
-    /* This is an old version of uv_timer_cb. keeping it to support backward compatibility. */
-    static void ares_timeout(uv_timer_t* handle, int status) {
-      ares_timeout(handle);
     }
 
     static void ares_poll_cb(uv_poll_t* watcher, int status, int events) {
