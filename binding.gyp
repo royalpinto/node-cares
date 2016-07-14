@@ -4,7 +4,8 @@
         "include_dirs": [
             "<!(node -e \"require('nan')\")",
             "deps/cares/include",
-            "deps/cares/src"
+            "deps/cares/src",
+            "deps/utils"
         ],
         "sources": [
             "src/cares_wrap.cc"
