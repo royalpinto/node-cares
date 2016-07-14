@@ -24,8 +24,8 @@ The follwoing code adapted from node's dns module and license is as follows
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #define CARES_STATICLIB
-#include "ares.h"
-#include "ares_dns.h"
+#include "../deps/cares/include/ares.h"
+#include "../deps/cares/src/ares_dns.h"
 #include "nan.h"
 #include "tree.h"
 #include "uv.h"
