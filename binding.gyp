@@ -1,5 +1,8 @@
 {
     "targets": [{
+        "variables": {
+            "gcc_version%": "unknown", # Define if it's not defined already.
+        },
         "target_name": "cares_wrap",
         "include_dirs": [
             "<!(node -e \"require('nan')\")",
