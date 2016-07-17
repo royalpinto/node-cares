@@ -24,6 +24,7 @@ node_js:
 
 env:
   - CXX=g++-4.8
+  - CXX=clang-3.5
 
 addons:
   apt:
@@ -31,6 +32,7 @@ addons:
       - ubuntu-toolchain-r-test
     packages:
       - g++-4.8
+      - clang-3.5
 
 
 services:
