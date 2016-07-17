@@ -11,12 +11,14 @@
             "src/cares_wrap.cc"
         ],
         "dependencies": [ "deps/cares/cares.gyp:cares" ],
-        'cflags_cc!': [ '-fno-tree-sink' ],
         "conditions": [
             ["OS!='win'", {
-                  "libraries": [ "-Wl,-rpath,<!(pwd)/build/Release/" ]
+                  "libraries": [ "-Wl,-rpath,<!(pwd)/build/Release/" ],
                 }
-            ]
+            ],
+            ['clang == 0 and gcc_version <= 44', {
+                'cflags': [ '-fno-tree-sink' ],  # Work around compiler bug.
+            }],
         ]
     }]
 }
