@@ -24,8 +24,8 @@ The follwoing code adapted from node's dns module and license is as follows
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #define CARES_STATICLIB
-#include "ares.h"
-#include "ares_dns.h"
+#include "../deps/cares/include/ares.h"
+#include "../deps/cares/src/ares_dns.h"
 #include "nan.h"
 #include "tree.h"
 #include "uv.h"
@@ -212,6 +212,7 @@ namespace Nan {
       }
 
       ~Resolver() {
+        ares_destroy(this->_ares_channel);
       }
 
       ares_task_list _ares_task_list;
@@ -221,17 +222,14 @@ namespace Nan {
 
     /* This is called once per second by loop->timer. It is used to constantly */
     /* call back into c-ares for possibly processing timeouts. */
+#if NODE_MODULE_VERSION < NODE_0_12_MODULE_VERSION
+    static void ares_timeout(uv_timer_t* handle, int status) {
+#else
     static void ares_timeout(uv_timer_t* handle) {
+#endif
       Resolver *resolver = (Resolver*)handle->data;
       assert(!RB_EMPTY(resolver->cares_task_list()));
       ares_process_fd(resolver->_ares_channel, ARES_SOCKET_BAD, ARES_SOCKET_BAD);
-    }
-
-    /* This is called once per second by loop->timer. It is used to constantly */
-    /* call back into c-ares for possibly processing timeouts. */
-    /* This is an old version of uv_timer_cb. keeping it to support backward compatibility. */
-    static void ares_timeout(uv_timer_t* handle, int status) {
-      ares_timeout(handle);
     }
 
     static void ares_poll_cb(uv_poll_t* watcher, int status, int events) {
@@ -1516,7 +1514,7 @@ namespace Nan {
       ares_addr_node* servers = new ares_addr_node[len];
       ares_addr_node* last = NULL;
 
-      int err;
+      int err = 0;
 
       for (uint32_t i = 0; i < len; i++) {
         assert(arr->Get(i)->IsArray());
