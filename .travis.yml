@@ -1,14 +1,30 @@
 language: node_js
 node_js:
+  - "6.1"
+  - "6.0"
+  - "5.11"
+  - "5.10"
+  - "5.9"
+  - "5.8"
+  - "5.7"
+  - "5.6"
+  - "5.5"
+  - "5.4"
+  - "5.3"
+  - "5.2"
   - "5.1"
-  - "4"
+  - "5.0"
+  - "4.4"
+  - "4.3"
   - "4.2"
   - "4.1"
   - "4.0"
   - "0.12"
+  - "0.10"
 
 env:
   - CXX=g++-4.8
+  - CXX=clang-3.5
 
 addons:
   apt:
@@ -16,6 +32,7 @@ addons:
       - ubuntu-toolchain-r-test
     packages:
       - g++-4.8
+      - clang-3.5
 
 
 services:
@@ -23,4 +40,10 @@ services:
 
 before_install:
   - docker build -t royalpinto/centos-dummydns test/setup
-  - docker run -p 49160:8080/udp -d royalpinto/centos-dummydns
+  - docker run -p 8080:8080/udp -d royalpinto/centos-dummydns
+
+
+notifications:
+  email:
+    on_success: always
+    on_failure: always

@@ -23,7 +23,7 @@ var cares = require('../lib/cares.js');
 var net = require('net');
 
 var SERVERS = ['127.0.0.1'];
-var PORT = 49160;
+var PORT = 8080;
 var dnsentries = require('./setup/dnsentries.js');
 
 

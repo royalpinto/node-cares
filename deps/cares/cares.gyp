@@ -22,6 +22,12 @@
     {
       'target_name': 'cares',
       'type': '<(library)',
+      'include_dirs!': [
+         '<(node_root_dir)/include/node',
+         '<(node_root_dir)/src',
+         '<(node_root_dir)/deps/uv/include',
+         '<(node_root_dir)/deps/v8/include'
+      ],
       'include_dirs': [ 'include', 'src' ],
       'direct_dependent_settings': {
         'include_dirs': [ 'include' ]
