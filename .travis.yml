@@ -41,3 +41,9 @@ services:
 before_install:
   - docker build -t royalpinto/centos-dummydns test/setup
   - docker run -p 8080:8080/udp -d royalpinto/centos-dummydns
+
+
+notifications:
+  email:
+    on_success: always
+    on_failure: always
