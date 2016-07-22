@@ -13,6 +13,7 @@ Forked from node.js dns module, node-cares provides node.js interface to c-ares 
  * Matching APIs to the upstream node.js dns module.
  * Additional **query** API to retrieve all headers and resource records.
  * Additional class **Resolver** to query by customized c-ares channel.
+ * Now with Promises.
 
 Installation
 ------
@@ -27,7 +28,7 @@ API docs
 ------
 
 In addition to mapping [APIs](http://nodejs.org/docs/latest/api/dns.html) from node.js dns module, following APIs are available:
-- **Resolver([options])** - allows creating c-ares_channel instance to query by customized options. All APIs available under cares lib will be available under Resolver instance as well. Resolver creation takes an optional object with the following fields (For detailed information on these options, visit: [here](http://c-ares.haxx.se/ares_init.html))
+- **Resolver([options])** - allows creating c-ares_channel instance to query by customized options. **All APIs available under cares lib will be available on Resolver instance as well**. Resolver creation takes an optional object with the following fields (For detailed information on these options, visit: [here](http://c-ares.haxx.se/ares_init.html))
     * `timeout`: The number of milliseconds each name server is given to respond to a query on the first try. (After the first try, the timeout algorithm becomes more complicated, but scales linearly with the value of timeout.) The default is five seconds.
     * `tries`: The number of tries the resolver will try contacting each name server before giving up. The default is four tries.
     * `ndots`: The number of dots which must be present in a domain name for it to be queried for "as is" prior to querying for it with the default domain extensions appended. The default value is 1 unless set otherwise by resolv.conf or the RES_OPTIONS environment variable.
@@ -151,4 +152,23 @@ cares.query('www.github.com', {
         console.log(a);
     });
 });
+```
+
+Another example usage of this API (the promise way) is shown below.
+```js
+var cares = require('cares');
+
+cares.query('www.github.com', {
+    type: cares.NS_T_A,
+    class: cares.NS_C_IN,
+})
+.then(function (response) {
+    response.answer.forEach(function (a) {
+        console.log(a);
+    });
+})
+.catch(function(err) {
+    throw err;
+})
+;
 ```
