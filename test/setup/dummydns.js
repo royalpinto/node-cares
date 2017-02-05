@@ -34,4 +34,4 @@ server.on('error', function(err) {
     console.error(err.stack);
 });
 
-server.serve(8080);
+module.exports = server;
