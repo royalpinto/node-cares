@@ -19,14 +19,9 @@
 // THE SOFTWARE
 
 
-exports.includeTest = function(test) {
-    test.doesNotThrow(
-        function() {
-            require('../lib/cares.js');
-        },
-        Error,
-        'Failed to import cares.'
-    );
-
-    test.done();
-};
+describe('include/import', function() {
+    it('should import cares', function(done) {
+        require('../lib/cares.js');
+        done();
+    });
+});

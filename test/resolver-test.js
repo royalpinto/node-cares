@@ -20,37 +20,43 @@
 
 
 var cares = require('../lib/cares.js');
+var chai = require('chai');
 var net = require('net');
 
 var SERVERS = ['127.0.0.1'];
 var PORT = 8080;
+var server = require('./setup/dummydns.js');
 var dnsentries = require('./setup/dnsentries.js');
 
 
-module.exports = {
+describe('Resolver', function() {
+    var resolver;
 
-    setUp: function(callback) {
-        this.resolver = new cares.Resolver({
-            servers: SERVERS,
-            /* eslint-disable camelcase */
-            udp_port: PORT,
-            /* eslint-enable */
+    before(function(done) {
+        server.on('listening', function() {
+            resolver = new cares.Resolver({
+                servers: SERVERS,
+                /* eslint-disable camelcase */
+                udp_port: PORT,
+                /* eslint-enable */
+            });
+            done();
         });
-        callback();
-    },
-    tearDown: function(callback) {
-        callback();
-    },
+        server.serve(PORT);
+    });
 
-    resolve: function(test) {
-        this.resolver.resolve('www.something.com', function(err, response) {
-            test.ifError(err);
-            test.notStrictEqual(response, null, err);
-            test.ok(response instanceof Array, "Invalid response returned.");
-            test.ok(response.length > 0, "Invalid response returned.");
+    after(function(done) {
+        done();
+    });
+
+    it('should resolve', function(done) {
+        resolver.resolve('www.something.com', function(err, response) {
+            chai.expect(err).to.be.equal(null);
+            chai.assert.isArray(response);
+            chai.expect(response).to.have.length.of.at.least(1);
             response.forEach(function(ip) {
-                test.ok(net.isIP(ip), "Invalid IP address.");
-                test.ok(net.isIPv4(ip), "Invalid IP address.");
+                chai.expect(net.isIP(ip)).to.be.ok;
+                chai.expect(net.isIPv4(ip)).to.be.ok;
             });
 
             var expected = (
@@ -64,34 +70,24 @@ module.exports = {
                 return answer.address;
             });
 
-            test.strictEqual(
-                expected.length,
-                response.length,
-                "Number of records expected and recived are not same."
-            );
+            chai.expect(response).to.have.lengthOf(expected.length);
 
             response.forEach(function(answer, index) {
-                test.strictEqual(
-                    answer,
-                    expected[index],
-                    "Expected and recieved record is not same."
-                );
+                chai.expect(answer).to.deep.equal(expected[index]);
             });
 
-            test.done();
+            done();
         });
-    },
+    });
 
-    resolveExplicitA: function(test) {
-        this.resolver.resolve('www.something.com', 'A', function(err,
-            response) {
-            test.ifError(err);
-            test.notStrictEqual(response, null, err);
-            test.ok(response instanceof Array, "Invalid response returned.");
-            test.ok(response.length > 0, "Invalid response returned.");
+    it('should resolve A', function(done) {
+        resolver.resolve('www.something.com', 'A', function(err, response) {
+            chai.expect(err).to.be.equal(null);
+            chai.assert.isArray(response);
+            chai.expect(response).to.have.length.of.at.least(1);
             response.forEach(function(ip) {
-                test.ok(net.isIP(ip), "Invalid IP address.");
-                test.ok(net.isIPv4(ip), "Invalid IP address.");
+                chai.expect(net.isIP(ip)).to.be.ok;
+                chai.expect(net.isIPv4(ip)).to.be.ok;
             });
 
             var expected = (
@@ -105,34 +101,24 @@ module.exports = {
                 return answer.address;
             });
 
-            test.strictEqual(
-                expected.length,
-                response.length,
-                "Number of records expected and recived are not same."
-            );
+            chai.expect(response).to.have.lengthOf(expected.length);
 
             response.forEach(function(answer, index) {
-                test.strictEqual(
-                    answer,
-                    expected[index],
-                    "Expected and recieved record is not same."
-                );
+                chai.expect(answer).to.deep.equal(expected[index]);
             });
 
-            test.done();
+            done();
         });
-    },
+    });
 
-    resolveExplicitAAAA: function(test) {
-        this.resolver.resolve('www.something.com', 'AAAA', function(err,
-            response) {
-            test.ifError(err);
-            test.notStrictEqual(response, null, err);
-            test.ok(response instanceof Array, "Invalid response returned.");
-            test.ok(response.length > 0, "Invalid response returned.");
+    it('should resolve AAAA', function(done) {
+        resolver.resolve('www.something.com', 'AAAA', function(err, response) {
+            chai.expect(err).to.be.equal(null);
+            chai.assert.isArray(response);
+            chai.expect(response).to.have.length.of.at.least(1);
             response.forEach(function(ip) {
-                test.ok(net.isIP(ip), "Invalid IP address.");
-                test.ok(net.isIPv6(ip), "Invalid IP address.");
+                chai.expect(net.isIP(ip)).to.be.ok;
+                chai.expect(net.isIPv6(ip)).to.be.ok;
             });
 
             var expected = (
@@ -146,33 +132,24 @@ module.exports = {
                 return answer.address;
             });
 
-            test.strictEqual(
-                expected.length,
-                response.length,
-                "Number of records expected and recived are not same."
-            );
+            chai.expect(response).to.have.lengthOf(expected.length);
 
             response.forEach(function(answer, index) {
-                test.strictEqual(
-                    answer,
-                    expected[index],
-                    "Expected and recieved record is not same."
-                );
+                chai.expect(answer).to.deep.equal(expected[index]);
             });
 
-            test.done();
+            done();
         });
-    },
+    });
 
-    resolve4: function(test) {
-        this.resolver.resolve4('www.something.com', function(err, response) {
-            test.ifError(err);
-            test.notStrictEqual(response, null, err);
-            test.ok(response instanceof Array, "Invalid response returned.");
-            test.ok(response.length > 0, "Invalid response returned.");
+    it('should resolve 4', function(done) {
+        resolver.resolve4('www.something.com', function(err, response) {
+            chai.expect(err).to.be.equal(null);
+            chai.assert.isArray(response);
+            chai.expect(response).to.have.length.of.at.least(1);
             response.forEach(function(ip) {
-                test.ok(net.isIP(ip), "Invalid IP address.");
-                test.ok(net.isIPv4(ip), "Invalid IP address.");
+                chai.expect(net.isIP(ip)).to.be.ok;
+                chai.expect(net.isIPv4(ip)).to.be.ok;
             });
 
             var expected = (
@@ -186,33 +163,24 @@ module.exports = {
                 return answer.address;
             });
 
-            test.strictEqual(
-                expected.length,
-                response.length,
-                "Number of records expected and recived are not same."
-            );
+            chai.expect(response).to.have.lengthOf(expected.length);
 
             response.forEach(function(answer, index) {
-                test.strictEqual(
-                    answer,
-                    expected[index],
-                    "Expected and recieved record is not same."
-                );
+                chai.expect(answer).to.deep.equal(expected[index]);
             });
 
-            test.done();
+            done();
         });
-    },
+    });
 
-    resolve6: function(test) {
-        this.resolver.resolve6('www.something.com', function(err, response) {
-            test.ifError(err);
-            test.notStrictEqual(response, null, err);
-            test.ok(response instanceof Array, "Invalid response returned.");
-            test.ok(response.length > 0, "Invalid response returned.");
+    it('should resolve 6', function(done) {
+        resolver.resolve6('www.something.com', function(err, response) {
+            chai.expect(err).to.be.equal(null);
+            chai.assert.isArray(response);
+            chai.expect(response).to.have.length.of.at.least(1);
             response.forEach(function(ip) {
-                test.ok(net.isIP(ip), "Invalid IP address.");
-                test.ok(net.isIPv6(ip), "Invalid IP address.");
+                chai.expect(net.isIP(ip)).to.be.ok;
+                chai.expect(net.isIPv6(ip)).to.be.ok;
             });
 
             var expected = (
@@ -226,33 +194,24 @@ module.exports = {
                 return answer.address;
             });
 
-            test.strictEqual(
-                expected.length,
-                response.length,
-                "Number of records expected and recived are not same."
-            );
+            chai.expect(response).to.have.lengthOf(expected.length);
 
             response.forEach(function(answer, index) {
-                test.strictEqual(
-                    answer,
-                    expected[index],
-                    "Expected and recieved record is not same."
-                );
+                chai.expect(answer).to.deep.equal(expected[index]);
             });
 
-            test.done();
+            done();
         });
-    },
+    });
 
-    resolveCname: function(test) {
-        this.resolver.resolveCname('www.something.com', function(err,
+    it('should resolve CNAME', function(done) {
+        resolver.resolveCname('www.something.com', function(err,
             response) {
-            test.ifError(err);
-            test.notStrictEqual(response, null, err);
-            test.ok(response instanceof Array, "Invalid response returned.");
-            test.ok(response.length > 0, "Invalid response returned.");
+            chai.expect(err).to.be.equal(null);
+            chai.assert.isArray(response);
+            chai.expect(response).to.have.length.of.at.least(1);
             response.forEach(function(data) {
-                test.notStrictEqual(data, null, "Invalid CNAME");
+                chai.expect(data).to.be.ok;
             });
 
             var expected = (
@@ -266,59 +225,45 @@ module.exports = {
                 return answer.data;
             });
 
-            test.strictEqual(
-                expected.length,
-                response.length,
-                "Number of records expected and recived are not same."
-            );
+            chai.expect(response).to.have.lengthOf(expected.length);
 
             response.forEach(function(answer, index) {
-                test.strictEqual(
-                    answer,
-                    expected[index],
-                    "Expected and recieved record is not same."
-                );
+                chai.expect(answer).to.deep.equal(expected[index]);
             });
 
-            test.done();
+            done();
         });
-    },
+    });
 
-    query: function(test) {
-        this.resolver.query('www.something.com', function(err, response) {
-            test.ifError(err);
-            test.notStrictEqual(response, null, err);
+    it('should query', function(done) {
+        resolver.query('www.something.com', function(err, response) {
+            chai.expect(err).to.be.equal(null);
+            chai.expect(response).to.be.ok;
 
-            test.ok(response.header instanceof Object,
-                "Invalid header returned.");
+            chai.expect(response.header).to.be.ok;
+            chai.expect(response.header).to.be.an.instanceof(Object);
 
-            test.ok(response.question instanceof Array,
-                "Invalid question returned.");
-            test.ok(response.question.length === 1,
-                "Invalid number of questions returned.");
+            chai.expect(response.question).to.be.ok;
+            chai.expect(response.question).to.be.an.instanceof(Array);
+            chai.expect(response.question).to.have.lengthOf(1);
+
             var question = response.question[0];
-            test.ok(question.class === 1,
-                "Invalid class in the question returned.");
-            test.ok(question.type === 1,
-                "Invalid type in the question returned.");
+            chai.expect(question.class).to.deep.equal(1);
+            chai.expect(question.type).to.deep.equal(1);
 
-            test.ok(response.authority instanceof Array,
-                "Invalid authority returned.");
-            test.ok(response.authority.length === 0,
-                "No authorites expected.");
+            chai.expect(response.authority).to.be.ok;
+            chai.expect(response.authority).to.be.an.instanceof(Array);
+            chai.expect(response.authority).to.have.lengthOf(0);
 
-            test.ok(response.additional instanceof Array,
-                "Invalid additional returned.");
-            test.ok(response.additional.length === 0,
-                "No additionals expected.");
+            chai.expect(response.additional).to.be.ok;
+            chai.expect(response.additional).to.be.an.instanceof(Array);
+            chai.expect(response.additional).to.have.lengthOf(0);
 
-            test.ok(response.answer instanceof Array,
-                "Invalid answer returned.");
-            test.ok(response.answer.length > 0,
-                "No answers returned.");
+            chai.expect(response.answer).to.be.ok;
+            chai.expect(response.answer).to.be.an.instanceof(Array);
+            chai.expect(response.answer).to.have.length.of.at.least(1);
 
-            test.done();
+            done();
         });
-    },
-
-};
+    });
+});
