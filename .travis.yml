@@ -22,6 +22,9 @@ node_js:
   - "0.12"
   - "0.10"
 
+dist: trusty
+sudo: false
+
 env:
   - CXX=g++-4.8
   - CXX=clang-3.5
