@@ -52,6 +52,9 @@
       "no-var": [
         0
       ],
+      "prefer-rest-params": [
+        0
+      ],
       "indent": [
         2,
         4,
