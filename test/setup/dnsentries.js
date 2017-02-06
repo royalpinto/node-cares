@@ -96,7 +96,7 @@ module.exports = {
             'www.something.com': {
                 answer: [{
                     name: 'www.something.com',
-                    data: ["v=spf1 include:_spf.something.com ~all"],
+                    data: ['v=spf1 include:_spf.something.com ~all'],
                     ttl: 600,
                     type: 16,
                     class: 1,
@@ -126,7 +126,7 @@ module.exports = {
                     flags: 's',
                     service: 'http+I2R',
                     regexp: '',
-                    replacement: "_http._tcp.example.com",
+                    replacement: '_http._tcp.example.com',
                     ttl: 600,
                     type: 35,
                     class: 1,
